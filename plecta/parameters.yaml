@@ -1,0 +1,443 @@
+# PLECTA tunable parameters -- the single source of truth at run time.
+#
+# Every adjustable number in the package is here. Nothing in the code carries a
+# tuned value of its own: the dataclass defaults still exist so the classes are
+# constructible in isolation, but `plecta.parameters` overwrites them from this
+# file on every load.
+#
+# `grouping_2d` is FROZEN. Those values produced every published number, and
+# `plecta/params.json` is retained beside this file as the immutable record of
+# them. `plecta.parameters.verify_against_frozen()` asserts the two agree and
+# runs in the test suite -- if you change a value here, that check fails until
+# you consciously update the frozen record too. That is deliberate.
+#
+# Units are pixels unless a name says otherwise; angles are radians.
+
+
+grouping_2d:
+  # The 2-D grouping core: which arms continue into which.
+  # FROZEN -- see the note above before editing.
+
+  topology:
+    spur_px: 3   # dead-end hairs this short are skeleton noise
+    bridge_px: 5   # arms this short between two crossings are crossing debris
+    absorb_free_px: 2   # free-ended arms this short are crossing debris
+    join_px: 14   # arms this short merge their two crossings into one
+
+  tangent_windows:
+    window_local: 24.0   # arclength for the first-pass tangent fit
+    window_chain: 55.0   # arclength once arms have been chained
+    min_quadratic: 18   # pixels needed before a curved fit is used
+
+  solver:
+    n_rounds: 8   # frame/matching refinement rounds
+    anneal_start: 0.85   # first round's acceptance limit, as a fraction of the
+                          # final one (1.0 = no annealing)
+    break_rings: false   # enforce "an instance is an open curve" by opening any
+                        # matched ring at its longest link. Recorded here rather
+                        # than left implicit in the code, as kappa_scale was.
+                        # false admits closed and looping strands as instances.
+
+  junction_cost:
+    # Per-junction link cost = j_w_direct * theta + j_w_turn * chord_trust *
+    # (phi_a + phi_b) + j_w_kappa * curvature term (see plecta/geometry.py
+    # link_cost). A pairing is eligible only when its cost is below 2x
+    # j_unmatched.
+    j_w_direct: 0.6   # weight on theta: tangent-vs-reversed-tangent turn
+    j_w_turn: 1.2   # weight on turn-onto-chord (phi_a + phi_b)
+    j_chord_floor: 4.0   # px; the turn-onto-chord term is scaled down below
+                         # this tip-to-tip distance (ramping to 0 at zero
+                         # length), since chord direction is unreliable when
+                         # tips are that close
+    j_w_kappa: 1.0   # weight on curvature continuity across the junction
+    j_unmatched: 0.62   # rad; pairings costing above 2x this are refused
+    j_gap_relief: 0.0   # >0: a stub with a good gap partner waiting is relieved
+
+  gap_cost:
+    # True gap links measure shorter and straighter than wrong candidates
+    # (METHOD.md): the turn terms do the real discriminating work, length
+    # mostly breaks ties. A candidate is eligible only when its cost is below
+    # 2x g_unmatched.
+    gap_max_len: 85.0   # longest bridge considered
+    g_w_direct: 0.2   # weight on theta: tangent-vs-reversed-tangent turn
+    g_w_turn: 1.0   # weight on turn-onto-chord (phi_a + phi_b)
+    g_w_len: 0.15   # weight on the length term (length / g_len_scale)
+    g_len_scale: 60.0   # px; bridge length is divided by this before g_w_len
+                        # weights it
+    g_chord_floor: 3.0   # px; as j_chord_floor, for gap links
+    g_w_kappa: 0.5   # weight on curvature continuity
+    g_unmatched: 0.3   # cost of leaving a stub unmatched at a gap; candidate
+                       # links costing above 2x this are refused
+    gap_max_theta: 0.4   # rad; hard reject on tangent disagreement
+    gap_max_phi: 0.28   # rad; hard reject on turn-onto-chord
+
+  shared:
+    # Applies to BOTH the junction and the gap cost.
+    kappa_scale: 30.0   # multiplies the curvature term in geometry.link_cost.
+                        # Redundant with j_w_kappa / g_w_kappa -- only the
+                        # product reaches the cost -- but until now it lived as
+                        # a bare default inside link_cost, an effective tuned
+                        # value that no parameter file recorded. Recorded here
+                        # so that reading this file really does tell you the
+                        # whole configuration. The value is unchanged, so every
+                        # published number still stands; params.json and the
+                        # SHA-256 in evidence/ were updated to match.
+
+
+depth_3d:
+  # The post-hoc depth stage: which of two crossing instances
+  # is in front, and how the global stack is solved.
+
+  crossing_detection:
+    merge_px: 8.0   # projected centreline intersections closer than this are
+                    # treated as the same crossing
+    window_px: 22.0   # arclength sampled either side of a crossing for evidence
+                      # (at least 3x the effective core_px)
+    core_px: 7.5   # half-size of the shared crossing core kept out of the
+                   # flank evidence samples. A CONSTANT under the default
+                   # core_mode: "flat"; the floor of the radius-scaled formula
+                   # under core_mode: "radius_scaled".
+                   #
+                   # PROVENANCE, stated plainly because it is the one
+                   # exception to the clean-seeds claim in the scoring block
+                   # below: 7.5 px WAS CHOSEN ON THE CLEAN HELD-OUT SET. The
+                   # 6..14 px sweep was run on those very scenes, so this is a
+                   # held-out-selected constant, not a pre-frozen one, and the
+                   # held-out table is clean for the choice of RULE only.
+                   #
+                   # Measured on the clean held-out optical set (20 scenes,
+                   # 1355 crossings, seeds disjoint from every tuning set).
+                   # The oracle per-rod core there is 8.30 px median, range
+                   # 6.00-10.69. A flat core is never significantly worse than
+                   # oracle per-rod radii anywhere in 6..14 px; 7.5 px matches
+                   # the oracle's decision rate (88.0% vs 87.5%) and edges its
+                   # accuracy (+0.0017 at matched coverage), and 9.0 px is
+                   # indistinguishable from it. core_px = 10.0, chosen earlier
+                   # on the three TUNING domains, does NOT replicate here
+                   # (-0.0051 [-0.0141, +0.0050] against the oracle, 1.8 points
+                   # less coverage) and is not the default.
+                   #
+                   # Two things bound how much the selection is worth worrying
+                   # about, neither of them a defence of it: the sweep is FLAT
+                   # (nothing in 6..14 px is significantly worse than the
+                   # oracle, 9.0 is indistinguishable from 7.5), and 7.5 px is
+                   # exactly what the radius-free fallback already computed,
+                   # max(6.0, 1.1*5 + 2), from default_radius_px = 5.0. The
+                   # value pre-existed the sweep; the sweep confirmed it on
+                   # held-out data and retired the non-replicating 10.0.
+                   # See METHOD.md "A flat core, and where 7.5 px comes from".
+    core_mode: "flat"   # flat | radius_scaled -- how that half-size is set.
+                   # "flat": core = core_px, so NO radius enters the evidence
+                   # path at all (the radius it replaced is an oracle quantity
+                   # on synthetic data and an estimate everywhere else, and
+                   # dropping it costs nothing measurable -- see core_px).
+                   # "radius_scaled": core = max(core_px, 1.1*(r_i+r_j)/2 + 2),
+                   # the historical geometry, retained so stored records
+                   # reproduce. Reproducing one needs core_px: 6.0 as well.
+                   # Radii are still used OUTSIDE the evidence path -- metric
+                   # z, grazing detection, the exported tube -- and are
+                   # unaffected either way.
+    min_flank_px: 6   # fewer flank samples than this -> abstain
+
+  evidence_weights:
+    # The evidence is combined into one signed score; sign decides which rod is
+    # on top and |score| weights the crossing in the global ordering.
+    # See plecta/depth.py `combine_channels`.
+    #
+    #   noise_floored        s = w_i F_inf                        [SHIPPED]
+    #   winsorized_linear    s = w_i F_I + w_s clip(F_S, -1, 1)
+    #   weight_of_evidence   s = w_i tanh(F_I) + w_s tanh(F_S)
+    #
+    # with, over each rod's flank grey median m_i / m_j and the POOLED core
+    # grey median m_c,
+    #   F_I    = (|m_c - m_j| - |m_c - m_i|) / max(|m_i - m_j|, 0.02)
+    #   F_inf  = (|m_c - m_j| - |m_c - m_i|) / max(|m_i - m_j|, 2*sigma_hat)
+    #   sigma_hat = 1.4826 * MAD of the WITHIN-ROD flank residuals (each rod's
+    #               flank greys centred on that rod's own median, the two
+    #               residual sets pooled, then the MAD -- NOT the MAD of the
+    #               raw pooled values, which is bimodal and would make the
+    #               denominator a contrast floor instead of a noise floor).
+    #
+    # WHICH RULE REPRODUCES WHICH RECORD
+    #   noise_floored      the shipped default from 2026-08-22 onward. One
+    #                      channel, no sharpness, no radius in the evidence
+    #                      path, and no gradient image built at all.
+    #   winsorized_linear  the rule shipped before that date. Three settings
+    #                      moved together, so reproducing a record made under
+    #                      it needs all three:
+    #                        scoring: "winsorized_linear"
+    #                        core_mode: "radius_scaled"
+    #                        core_px: 6.0
+    #                      (core_px is the FLOOR of the radius-scaled core, so
+    #                      the new 7.5 default would change the sampling.
+    #                      abstain_band did not move and still gates it.)
+    #                      Verified bit-identical -- every score, probability,
+    #                      abstention, direction, flip, layer and height --
+    #                      on held-out optical scenes; the record only gains
+    #                      the two new informational feature keys and the
+    #                      three new solver_report fields.
+    #   weight_of_evidence w = 2.446, 1.576, plus the same three settings: the
+    #                      recorded held-out depth aggregates were produced
+    #                      under this one, and they need REGENERATING -- they
+    #                      are no longer the shipped stage's numbers.
+    #
+    # WHY THE DEFAULT CHANGED. F_I divides by the two rods' contrast alone, so
+    # it reaches +/-1 whenever the core matches one rod outright -- including
+    # when the rods differ by less than the flank noise, where the match means
+    # nothing. Flooring the denominator at twice the noise makes |s| a margin
+    # in units of "how much bigger than the noise is this".
+    #
+    # Measured on a clean held-out OPTICAL set of 20 scenes / 1355 crossings
+    # whose seeds are disjoint from every tuning set: the same accuracy as the
+    # previous rule at the same coverage, +0.0025 with 95% CI
+    # [-0.0042, +0.0079] -- no difference -- and a much better-ordered
+    # confidence, AUC of correctness against |s| 0.7772 -> 0.8698,
+    # +0.0926 [+0.0563, +0.1321]. That ordering converts into accuracy as soon
+    # as more abstention is acceptable: +0.0188 at 82.5% coverage, +0.0240 at
+    # 80% -- both COVERAGE-MATCHED comparison points BELOW where the default
+    # runs, not the shipped operating point (see abstain_score). The honest
+    # headline is "same accuracy, better-ordered confidence, simpler evidence
+    # path", NOT "more accurate".
+    #
+    # WHAT THOSE CLEAN SEEDS DO AND DO NOT BUY. The RULE is clean on that set:
+    # scoring, w_intensity, the 2*sigma_hat floor and abstain_score were all
+    # fixed before it existed and only CHECKED against it. core_px = 7.5 is the
+    # exception -- it was selected by a sweep run on those very scenes, as its
+    # own comment above says. So "no parameter here was chosen on it" is true
+    # of the rule and FALSE of core_px, and this file no longer claims it
+    # blanket-wide.
+    #
+    # An axial second channel (each rod's core arc read on its own axis) was
+    # built and measured INERT on the same set: -0.0008 [-0.0059, +0.0048] at
+    # the shipped operating point, and none of the 26 directions it changes
+    # clears any deployable threshold. It is deliberately not implemented.
+    scoring: "noise_floored"   # noise_floored | winsorized_linear | weight_of_evidence
+    w_intensity: 2.0     # weight on the intensity channel; under
+                         # noise_floored the whole score is w_intensity*F_inf
+                         # and the measurement pinned this at 2
+    w_sharpness: 1.0     # weight on the sharpness channel (legacy rules only)
+    abstain_band: 0.15   # LEGACY RULES ONLY. |p - 0.5| below this and the
+                         # crossing abstains, applied as the exactly
+                         # equivalent score threshold
+                         # log((0.5+band)/(0.5-band)) = 0.6190. Kept so
+                         # winsorized_linear and weight_of_evidence stay
+                         # bit-identical to their records.
+    abstain_score: 0.40  # noise_floored ONLY, and in SCORE units, not a
+                         # probability band: |s| = |2*F_inf| is a
+                         # noise-normalised margin, not a log-odds, so putting
+                         # it through a sigmoid to compare against a band
+                         # around p = 0.5 would be arithmetic without a
+                         # meaning. 0.40 was set to put the rule at the 82.5%
+                         # POOLED decision rate the calibration targets -- a
+                         # target carried in from the mixed development
+                         # domains and recorded outside this repository, NOT
+                         # what the threshold delivers on any one set.
+                         # On the clean held-out optical set the same 0.40
+                         # decides 87.1% of crossings, reading 0.9347 accuracy
+                         # against the previous rule's 0.9217 at its 89.5%.
+                         # THAT 87.1% IS THE SHIPPED OPERATING POINT; the
+                         # "+0.0188 at 82.5% coverage" quoted above is a
+                         # coverage-matched comparison reached by abstaining
+                         # MORE than this default does. On the clean set every
+                         # t in 0.35..0.47 gives the same accuracy, so this is
+                         # a plateau, not a peak.
+    use_image_evidence: true   # false: every crossing abstains, order is a tie-break
+
+  solver:
+    exact_max_nodes: 14   # exact DP up to this component size, then greedy
+    undecided_order: "compact"   # compact | id_based -- how abstained crossings
+                                 # are stacked; see METHOD.md "Stacking the
+                                 # crossings the evidence could not decide"
+
+  geometry:
+    radius_mode: "measured"   # measured | fixed -- "measured" uses the caller's
+                              # supplied/FWHM radii; "fixed" gives every
+                              # instance default_radius_px (mask-only runs)
+    radius_fallback: "median"   # median | default -- what an instance with no
+                                # usable width measurement gets. "median" takes
+                                # the median of whatever WAS measured in the
+                                # same scene; "default" takes default_radius_px,
+                                # a constant unrelated to the scene. Count is
+                                # reported as solver_report.n_radius_imputed.
+    default_radius_px: 5.0   # used when nothing at all could be measured
+    z_gap_px: 0.0   # extra clearance added to r_i + r_j between stacked instances
+    clear_grazing_overlaps: false   # also clear pairs overlapping without
+                       # crossing, as ABSTAINED pairs: clearance, no opinion
+    grazing_evidence: false   # instead ASK the image about those pairs -- the
+                       # same occlusion evidence a real crossing gets, sampled
+                       # at the point of closest approach, where the two
+                       # strokes do overlap. Each pair then either earns a
+                       # direction (and constrains, and is reported as a
+                       # crossing) or abstains on its own merits and is left
+                       # alone. Needs use_image_evidence.
+                       #
+                       # ATTRIBUTION: every figure below was measured on
+                       # 2026-08-21 UNDER THE PREVIOUS EVIDENCE RULE
+                       # (winsorized_linear / weight_of_evidence with the
+                       # radius-scaled core, core_px 6.0) and has NOT been
+                       # re-run under the shipped noise_floored rule. The
+                       # recipe in the evidence_weights block reproduces that
+                       # rule exactly, so they still describe a configuration
+                       # this code can run -- but they are PENDING
+                       # re-measurement, not current numbers. All three rules
+                       # share a numerator, so the direction of the conclusion
+                       # (grazing evidence is genuine on broken crossings and
+                       # a coin toss elsewhere) is not in doubt; the
+                       # accuracies, coverages, tau and ARI are.
+                       #
+                       # Measured, 20 held-out scenes. The geometry is sound
+                       # only where the pair is a REAL crossing that 2-D
+                       # fragmentation broke apart. With PREDICTED centrelines
+                       # 196 of 484 grazing pairs (40%) are exactly that, and
+                       # on those the evidence is right 0.716 of the time
+                       # (against 0.848 on crossings that stayed intact) --
+                       # genuine occlusion signal. On the other 288, which
+                       # really are side-by-side or end-abutting runs with no
+                       # shared core to read, it is right 0.537 of the time:
+                       # a coin toss that the abstention band does not catch.
+                       # Pooled, 0.616 over 336 decided pairs.
+                       #
+                       # So it buys crossing coverage 0.766 -> 0.849, accuracy
+                       # over ALL eligible crossings 0.543 -> 0.607, direct
+                       # ordinal accuracy 0.711 -> 0.749 and interpenetrating
+                       # pairs 207 -> 41, while costing Kendall tau
+                       # 0.354 -> 0.340, layer ARI 0.256 -> 0.228 and
+                       # decided-crossing accuracy 0.857 -> 0.846. With ORACLE
+                       # centrelines no ground-truth crossing hides among the
+                       # grazing pairs at all, and it is layer ARI
+                       # 0.335 -> 0.274 for a tau of 0.403 -> 0.410.
+                       #
+                       # Off by default: measurement does not say otherwise.
+                       # Worth turning on for predicted-instance runs that care
+                       # about crossing coverage and physical validity more
+                       # than about the layer partition.
+
+
+joint_greyscale:
+  # Greyscale evidence inside the 2-D junction matching
+  # -- a MEASURED NEGATIVE RESULT, kept only as a record.
+  # Measured 2026-08-20: mean F1 -0.0129 as shipped, and
+  # +0.0005 (neutral) after repairing three implementation
+  # defects; appearance AUC 0.63 pooled and ~0.53 on real
+  # SEM, against geometry's own 0.78-0.82 on the same
+  # pairs. Its pre-registered stop criterion (AUC below
+  # ~0.75) was met, and it is disabled: nothing in the
+  # shipped pipeline imports plecta/joint.py, so this
+  # section is read only by `python -m plecta.joint`.
+  # Kept as the record of a rejected mechanism. No
+  # 2-D improvement is claimed. See plecta/joint.py.
+
+  appearance:
+    lambda_appearance: 1.5   # weight on the appearance cost, in the same units
+                             # as the geometry link cost; 0.0 would disable
+                             # joint mode exactly (falls back to the
+                             # geometry-only core).
+                             #
+                             # INTENT, stated explicitly: it SHOULD STAY 1.5
+                             # and should NOT be set to 0.0. 1.5 is the weight
+                             # the -0.0129 F1 result was obtained at, and this
+                             # section's only job is to record the rejected
+                             # configuration faithfully; zeroing it would
+                             # erase what was measured while changing nothing
+                             # that runs. The mechanism is already disabled by
+                             # not being imported -- nothing in the shipped
+                             # pipeline reads this section, only
+                             # `python -m plecta.joint` does -- so the value
+                             # cannot leak into any result. Re-run the module
+                             # at 1.5 to confirm the negative; use the
+                             # geometry-only core by not running the module.
+    margin_threshold: 0.15   # a geometry-only pairing is "ambiguous" -- and so
+                             # eligible for appearance evidence -- when the best
+                             # forbidding-it alternative costs less than this
+                             # much more
+
+  sampling:
+    skip_px: 1.5   # px from the stub tip to start sampling (skips the junction)
+    window_px: 6.0   # px of arm sampled beyond skip_px
+    n_samples: 6   # number of samples taken across that window
+
+
+width_sampling:
+  # Where perpendicular cuts are taken along an axis.
+
+  cuts:
+    cut_step: 2.0   # px of arclength between successive cuts
+    node_clear_px: 6.0   # keep cuts this far from any crossing pixel
+    tangent_sigma: 3.0   # px, smoothing of the axis before differencing for
+                         # the cut's normal direction
+    join_px: 8.0   # arms this short merge their two crossings into one
+    min_cuts: 3   # fewer valid cuts than this -> no width reported at all
+
+  bootstrap:
+    block: 5   # moving-block bootstrap block length, in cuts
+    n_boot: 2000   # number of bootstrap resamples
+    boot_min_cuts: 8   # below this many valid cuts, the bootstrap CI is not
+                       # reported
+
+  quality:
+    scene_width_cap: 2.0   # drop a cut wider than this multiple of the scene's
+                           # own median cut width (0 disables)
+    weak_min_cuts: 12   # below this many valid cuts, the width is reported but
+                        # flagged weak
+    weak_max_mad: 0.6   # px; above this median absolute deviation, likewise
+                        # flagged weak
+
+
+width_profile:
+  # How one perpendicular intensity profile becomes a width.
+
+  extent:
+    half_len: 22.0   # px sampled outward from the axis on each side
+    min_reach: 10.0   # px of image required on the shorter side before the
+                      # cut is rejected as running off the edge
+    step: 0.25   # px spacing of samples along the cut
+    recentre_px: 3.0   # px window used to re-locate the peak near the axis,
+                       # and the max allowed offset of the measured centre
+                       # from the axis before the cut is rejected
+
+  acceptance:
+    min_contrast_sigma: 4.0   # minimum peak amplitude, in multiples of the
+                              # image noise sigma
+    min_contrast_abs: 0.05   # minimum peak amplitude in absolute image units;
+                             # the contrast floor is the larger of this and
+                             # min_contrast_sigma
+    min_width: 1.5   # px; a measured FWHM outside [min_width, max_width] is
+                     # rejected
+    max_width: 36.0   # px
+    rise_tol: 0.25   # fraction of the peak amplitude the profile may climb
+                     # back up while descending to half-max before it is
+                     # treated as a neighbouring ridge and the cut rejected
+    require_bg_confident: true   # reject a cut wherever the background field
+                                 # was guessed rather than measured
+
+
+rendering:
+  # Stage 4 only: redrawing an instance at its measured width.
+  # Never affects the grouping scores.
+
+  geometry:
+    smooth_window: 9.0   # arclength window for smoothing the drawn centreline
+                         # (moving average, endpoints pinned)
+    resample_px: 1.0   # px spacing the centreline is resampled to before
+                       # smoothing and drawing
+    min_width_px: 3.0   # a rendered bundle thinner than this is drawn as a line
+    max_width_px: 40.0   # px, clamp on the rendered width
+
+  absorption:
+    absorb_thr: 0.0   # 0 disables; >0 merges two instances at this overlap
+                      # fraction of the smaller one's rendered area
+    absorb_min_px: 40   # never absorb on an overlap smaller than this
+
+  drawing:
+    draw_bridges: true   # interpolate the ribbon across bridged mask gaps
+    keep_node_pixels: false   # paint the crossing clusters in as well
+    clip_to_mask: false   # keep only ribbon pixels that are foreground in the
+                          # input mask; measured to not change the score, off
+                          # by default because it also reintroduces the ragged
+                          # mask boundary
+    bridge_dilate_px: 1.5   # width of the drawn bridge where the mask has
+                            # nothing to clip against
+    taper: false   # render a width that varies along the bundle instead of one
+                   # median width; measured worse (-0.003 to -0.012 F1), off
+    taper_smooth_px: 25.0   # arclength over which the varying width is
+                            # smoothed before it is drawn (only when taper is on)

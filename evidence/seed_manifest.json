@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "generator": "eval/generators/synth_thick.py",
+  "seed_rule": "Each block denotes every integer from start through start + count - 1.",
+  "sets": {
+    "synthetic_thick": {
+      "role": "development",
+      "generator_args": "--coverages 0.20,0.30,0.40,0.50,0.60 --n 4 --size 512 --seed0 20260720",
+      "seed_blocks": [
+        {"start": 20262720, "count": 4},
+        {"start": 20263720, "count": 4},
+        {"start": 20264720, "count": 4},
+        {"start": 20265720, "count": 4},
+        {"start": 20266720, "count": 4}
+      ]
+    },
+    "dev_ext": {
+      "role": "development",
+      "local_path": ".local/evaluation/data/dev_ext",
+      "generator_args": "--coverages 0.20,0.30,0.60 --n 16 --size 512 --seed0 20270101",
+      "seed_blocks": [
+        {"start": 20272101, "count": 16},
+        {"start": 20273101, "count": 16},
+        {"start": 20276101, "count": 16}
+      ]
+    },
+    "gen_dev40": {
+      "role": "development",
+      "local_path": ".local/evaluation/data/gen_dev40",
+      "generator_args": "--coverages 0.40 --n 16 --size 512 --seed0 20290101",
+      "seed_blocks": [{"start": 20294101, "count": 16}]
+    },
+    "val": {
+      "role": "heldout",
+      "local_path": ".local/evaluation/data/val",
+      "generator_args": "--coverages 0.20,0.30,0.60 --n 32 --size 512 --seed0 20280101",
+      "seed_blocks": [
+        {"start": 20282101, "count": 32},
+        {"start": 20283101, "count": 32},
+        {"start": 20286101, "count": 32}
+      ]
+    },
+    "gen_test40": {
+      "role": "heldout",
+      "local_path": ".local/evaluation/data/gen_test40",
+      "generator_args": "--coverages 0.40 --n 32 --size 512 --seed0 20310101",
+      "seed_blocks": [{"start": 20314101, "count": 32}]
+    },
+    "synthetic_locked_v1": {
+      "role": "locked",
+      "generator_args": "--coverages 0.20,0.30,0.40,0.50,0.60 --n 25 --size 512 --seed0 20260801",
+      "seed_blocks": [
+        {"start": 20262801, "count": 25},
+        {"start": 20263801, "count": 25},
+        {"start": 20264801, "count": 25},
+        {"start": 20265801, "count": 25},
+        {"start": 20266801, "count": 25}
+      ]
+    }
+  }
+}

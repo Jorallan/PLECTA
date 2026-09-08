@@ -1,0 +1,36 @@
+{
+  "schema": 2,
+  "method": "PLECTA 0.1.0",
+  "parameter_sha256": "97383f1e573de95ee97b67e16007a8538ecf86c6f5ffe21186405070d4ca88f7",
+  "metric": "common-fragment pairwise grouping",
+  "heldout": {
+    "scope": "128 disjoint-seed scenes from the development generator",
+    "n_scenes": 128,
+    "n_failed": 0,
+    "f1": 0.8544673064097946,
+    "precision": 0.8676369284476027,
+    "recall": 0.8430482048274094,
+    "fragment_recovery": 0.799426341654629,
+    "adjusted_rand_index": 0.8507988333369723,
+    "vi_split_bits": 0.25624691911463965,
+    "vi_merge_bits": 0.21645139803148344,
+    "f1_by_coverage": {
+      "20": 0.9111805585824819,
+      "30": 0.8736209730029955,
+      "40": 0.8581834547560123,
+      "60": 0.7748842392976889
+    }
+  },
+  "development_ablation": {
+    "n_scenes": 84,
+    "full_f1": 0.8671185395543284,
+    "no_gap_bridging_f1": 0.727745465053302,
+    "no_connector_cluster_consolidation_f1": 0.8036713431283085,
+    "no_junction_chord_turn_f1": 0.6812744523172951
+  },
+  "limitations": [
+    "Held-out scenes are new draws from the same generator, not an independent distribution.",
+    "Ablations use development data.",
+    "Generated scenes, detailed rows, and the development harness are retained locally."
+  ]
+}

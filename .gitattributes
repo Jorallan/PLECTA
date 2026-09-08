@@ -1,0 +1,4 @@
+# The frozen configuration is hashed byte-for-byte (see evidence/README.md);
+# EOL conversion on checkout would silently change the hash on Windows.
+plecta/params.json -text
+evidence/*.json -text

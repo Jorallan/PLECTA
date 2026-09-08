@@ -1,0 +1,11 @@
+{
+ "role": "the interpreter and dependency versions under which the release parity and held-out evidence in this directory were produced; pyproject.toml states floors, this states the tested point",
+ "python": "3.12.9",
+ "platform": "Windows-11-10.0.26200-SP0",
+ "packages": {
+  "numpy": "2.4.4",
+  "scipy": "1.16.3",
+  "scikit-image": "0.25.2",
+  "networkx": "3.5"
+ }
+}

@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "plecta-filaments"
+version = "0.1.0"
+description = "Overlap-aware reconstruction of filament instances from binary axis masks"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+dependencies = [
+  "networkx>=3.0",
+  "numpy>=1.24",
+  "scipy>=1.10",
+  "scikit-image>=0.21",
+  "pyyaml>=6.0"
+]
+
+[project.optional-dependencies]
+image = ["matplotlib>=3.7"]
+test = ["pytest>=7"]
+
+[project.scripts]
+plecta = "plecta.predict:main"
+plecta-image = "plecta.image.predict:main"
+plecta-tune = "plecta.tune:main"
+
+[tool.setuptools.packages.find]
+include = ["plecta*"]
+
+[tool.setuptools.package-data]
+plecta = ["parameters.yaml", "params.json"]

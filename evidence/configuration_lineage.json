@@ -1,0 +1,26 @@
+{
+ "role": "append-only record of every plecta/params.json this repository has shipped. The anchor is the configuration the published numbers were produced under; later entries exist so a change can be made without either falsifying a dated record or silently invalidating it. tests/test_configuration_lineage.py asserts the live file is the newest entry.",
+ "anchor_sha256": "97383f1e573de95ee97b67e16007a8538ecf86c6f5ffe21186405070d4ca88f7",
+ "lineage": [
+  {
+   "sha256": "97383f1e573de95ee97b67e16007a8538ecf86c6f5ffe21186405070d4ca88f7",
+   "date": "2026-08-14",
+   "note": "the configuration behind every published number: heldout F1 0.8545 in benchmark_summary.json, and the 128-mask parity run in release_parity.json. Those two files record this hash and must keep recording it.",
+   "produced_the_published_results": true
+  },
+  {
+   "sha256": "29a3dbbf5ca1d3f4da21f8b3741fb0d406af0d9a8f3f4340a1b03453d1124c60",
+   "date": "2026-08-26",
+   "note": "added grouping_2d.break_rings and set it to false. No pre-existing value changed. The anchor configuration always opened a matched ring; this one does not.",
+   "produced_the_published_results": false,
+   "outputs_unchanged_vs_anchor": true,
+   "why": "ring-breaking is a guard against a configuration the data does not produce. plecta/linking.py records it firing zero times across all 84 development scenes, so switching it off removes a step that was never taking effect. This is inert BY MEASUREMENT, not by construction: with break_rings false, break_cycles is not called at all, and any mask that did close a ring would group differently.",
+   "verified": {
+    "measured_here": "predict() output byte-identical with break_rings true and false on 9 masks -- the 3 real annotated crops and 6 synthetic scenes -- comparing instance count and the bytes of every layer",
+    "measured_previously": "0 links dropped across all 84 development scenes, recorded in linking.break_cycles",
+    "not_rerun": "the 128 held-out masks, which are not present in this working tree. The published aggregates are carried over on the two measurements above, not re-measured.",
+    "what_would_break_it": "a mask whose matching closes a ring. None has been observed on development or held-out data, but the anchor configuration would open it and this one will not."
+   }
+  }
+ ]
+}

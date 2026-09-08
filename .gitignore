@@ -1,0 +1,36 @@
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+*.egg-info/
+
+# Editor and local-agent state
+.claude/
+.local/
+.vscode/
+.idea/
+*.swp
+*.tmp
+
+# Generated predictions and disposable smoke artifacts
+predictions/
+**/_smoke*.json
+**/_grid*.json
+**/__pycache__/
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build outputs and local credentials
+build/
+dist/
+.env
+.env.*
+!.env.example
