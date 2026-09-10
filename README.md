@@ -154,7 +154,7 @@ repository** button with the current entry. In BibTeX:
   title     = {{PLECTA}: overlap-aware reconstruction of filament instances
                from binary axis masks},
   year      = {2026},
-  version   = {0.1.0},
+  version   = {0.1.1},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.22687992},
   url       = {https://doi.org/10.5281/zenodo.22687992}
@@ -162,10 +162,9 @@ repository** button with the current entry. In BibTeX:
 ```
 
 That is the **concept** DOI: it always resolves to the newest version, so it
-stays correct across releases. Each release also gets its own version DOI —
-[`10.5281/zenodo.22687993`](https://doi.org/10.5281/zenodo.22687993) for
-v0.1.0 — which is what to cite when the exact version matters for
-reproducibility.
+stays correct across releases. Each release also gets its own version DOI,
+shown on that release's Zenodo record — cite that one instead where the exact
+version matters for reproducibility.
 
 Once the accompanying paper is published it becomes the preferred citation,
 via `preferred-citation` in `CITATION.cff`, and this DOI goes on identifying
