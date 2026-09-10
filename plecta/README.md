@@ -1,8 +1,8 @@
 # PLECTA core
 
 The evaluated mask-to-instance implementation. It reads a binary mask and
-writes overlap-aware instance layers, and nothing else: not the SEM image, not
-ground truth, not a clean reference mask.
+writes overlap-aware instance layers, and nothing else: not the greyscale
+image, not ground truth, not a clean reference mask.
 
 ```powershell
 plecta --mask input.png --out pred_multilabel.npz

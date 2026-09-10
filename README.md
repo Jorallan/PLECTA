@@ -11,8 +11,8 @@ skeletonizes the mask, decomposes it into arms and junctions, and alternates
 exact crossing matching with gated gap matching as chain geometry is refined.
 Crossing pixels may belong to several output instances.
 
-Grouping is deterministic and mask-only: it does not read the SEM image,
-ground truth, or a clean reference mask.
+Grouping is deterministic and mask-only: it does not read the greyscale
+image, ground truth, or a clean reference mask.
 
 ## Install and run
 
@@ -82,16 +82,19 @@ experimental scripts remain local.
 
 ---
 
-## SEM characterization
+## Greyscale characterization
 
 ```powershell
 python -m pip install ".[image]"
 plecta-image --scene <dir> --out <dir>
 ```
 
-Measures width and brightness **after** grouping. `--refine` renders smooth
-ribbons; silhouette absorption is off by default. None of these options
-contributed to the held-out grouping result. See
+Measures each instance against a registered greyscale image — width and
+brightness — **after** grouping. `--refine` renders smooth ribbons; silhouette
+absorption is off by default. None of these options contributed to the held-out
+grouping result. Developed and validated on SEM, and the scene loader still
+expects `sem.png` by default, but nothing in the stage is specific to that
+modality. See
 [`plecta/image/README.md`](plecta/image/README.md).
 
 ## Depth stage (2.5-D)

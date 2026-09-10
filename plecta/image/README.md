@@ -1,28 +1,34 @@
-# Optional SEM characterization
+# Optional greyscale characterization
 
-Runs the fixed PLECTA grouping, then measures each instance against the SEM
-image: how wide it is, how bright, and how much to trust either number.
+Runs the fixed PLECTA grouping, then measures each instance against a
+registered greyscale image: how wide it is, how bright, and how much to trust
+either number.
 
-**SEM intensity never affects grouping.** Everything here runs after the
+**Image intensity never affects grouping.** Everything here runs after the
 grouping is fixed, and the numbers it produces cannot revise it. None of it
 contributed to the held-out result.
+
+Nothing here is specific to a modality — it needs a greyscale image registered
+to the mask, and reads it as intensities. It was developed and validated on
+SEM, which is why the default filename and the figure labels say so.
 
 ```powershell
 python -m pip install ".[image]"
 plecta-image --scene path\to\scene --out output
 ```
 
-The scene folder needs a mask (`mask_w1.png` by default) and `sem.png`.
+The scene folder needs a mask (`mask_w1.png` by default) and a greyscale
+image (`sem.png` by default; `--sem-name` overrides it).
 
 ## What each file does
 
 | File | What it does |
 |:--|:--|
-| [`pipeline.py`](pipeline.py) | The single library entry point: group the mask, load the SEM, cut every instance, aggregate. `measure_scene` is the one implementation — the CLI calls it rather than repeating it. |
+| [`pipeline.py`](pipeline.py) | The single library entry point: group the mask, load the image, cut every instance, aggregate. `measure_scene` is the one implementation — the CLI calls it rather than repeating it. |
 | [`measurement.py`](measurement.py) | Reads the image and measures one cut across one ridge. Estimates the background as a *field* rather than a constant, from the pixels that do not look like filament, so a faint bundle is not measured against its bright neighbour. Fits full width at half maximum above that local background, and refuses a cut it cannot justify — too little contrast, crest off axis, a neighbouring ridge in the way — with a named reason. Also converts a measured width to a physical diameter for the depth stage. |
 | [`bundles.py`](bundles.py) | Decides *where* to cut, and turns many cuts into one number per instance. Places cuts along the axis, skipping crossings (a cut through a crossing measures two bundles at once). Aggregates with a moving-block bootstrap, and separates the spread that is measurement noise from the spread that is the bundle genuinely varying along its length. |
 | [`refine.py`](refine.py) | Optional re-rendering. Orders each chain, interpolates the bridged gaps the core output leaves unpainted, smooths with the endpoints pinned, and draws a ribbon at the fitted width. |
-| [`overlay.py`](overlay.py) | Optional three-panel figure: the SEM alone, the instances coloured by fitted width with the cuts that produced them marked, and the width profile along each instance — where a wrong merge shows up as a step rather than a drift. |
+| [`overlay.py`](overlay.py) | Optional three-panel figure: the image alone, the instances coloured by fitted width with the cuts that produced them marked, and the width profile along each instance — where a wrong merge shows up as a step rather than a drift. |
 | [`predict.py`](predict.py) | The `plecta-image` command line. Writes the layers, a per-instance CSV, a metadata JSON, and the figures. |
 
 ## `--refine`, and the one flag that changes grouping

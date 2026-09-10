@@ -126,7 +126,7 @@ generator, so they measure **sampling robustness, not transfer** to an
 independent image distribution.
 
 It does not establish calibrated physical widths or general real-image
-performance. SEM width measurement and ribbon rendering are downstream optional
+performance. Width measurement and ribbon rendering are downstream optional
 stages, and default-off silhouette absorption changes grouping and was absent
 from the held-out result.
 
@@ -188,11 +188,13 @@ rule, sampling geometry and abstention threshold a run actually used, so a
 stored record describes itself rather than depending on the `parameters.yaml`
 of the day.
 
-### SEM characterization
+### Greyscale characterization
 
-[`plecta/image/`](plecta/image/) measures each instance against the SEM image —
-width, brightness, and how much to trust either number — and can re-render
-instances as smooth ribbons. SEM intensity never affects grouping. See
+[`plecta/image/`](plecta/image/) measures each instance against a registered
+greyscale image — width, brightness, and how much to trust either number — and
+can re-render instances as smooth ribbons. Image intensity never affects
+grouping. Nothing in the stage is specific to a modality; it was developed and
+validated on SEM, and the scene loader's default filename is `sem.png`. See
 [`plecta/image/README.md`](plecta/image/README.md).
 
 ### Joint mode
