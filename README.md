@@ -1,5 +1,7 @@
 # PLECTA
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22687992.svg)](https://doi.org/10.5281/zenodo.22687992)
+
 Licensed under the [MIT License](LICENSE): free to use, modify and
 redistribute, provided the copyright notice and license text travel with any
 copy or substantial portion of the code. If PLECTA or its method contributes to
@@ -135,3 +137,36 @@ rule stays selectable and reproduces its records bit for bit.
 
 It was checked on a clean optical set whose seeds are disjoint from every
 tuning set. See the limitations noted in [`METHOD.md`](METHOD.md#scope).
+
+## Citing PLECTA
+
+The MIT license requires that the copyright notice be preserved in copies of
+the code. Citation is asked of you separately, as a scholarly courtesy: if
+PLECTA or the method described in [`METHOD.md`](METHOD.md) contributes to work
+you publish, cite the software.
+
+GitHub reads [`CITATION.cff`](CITATION.cff) and offers a **Cite this
+repository** button with the current entry. In BibTeX:
+
+```bibtex
+@software{allan_plecta_2026,
+  author    = {Allan, Oday},
+  title     = {{PLECTA}: overlap-aware reconstruction of filament instances
+               from binary axis masks},
+  year      = {2026},
+  version   = {0.1.0},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.22687992},
+  url       = {https://doi.org/10.5281/zenodo.22687992}
+}
+```
+
+That is the **concept** DOI: it always resolves to the newest version, so it
+stays correct across releases. Each release also gets its own version DOI —
+[`10.5281/zenodo.22687993`](https://doi.org/10.5281/zenodo.22687993) for
+v0.1.0 — which is what to cite when the exact version matters for
+reproducibility.
+
+Once the accompanying paper is published it becomes the preferred citation,
+via `preferred-citation` in `CITATION.cff`, and this DOI goes on identifying
+the software itself.
