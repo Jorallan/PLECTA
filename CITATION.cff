@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+title: "PLECTA: overlap-aware reconstruction of filament instances from binary axis masks"
+message: "If you use this software, or the method it implements, please cite it."
+type: software
+authors:
+  - family-names: Allan
+    given-names: Oday
+    orcid: "https://orcid.org/0000-0002-6341-4695"
+    affiliation: "University of Twente"
+repository-code: "https://github.com/Jorallan/PLECTA"
+version: 0.1.0
+date-released: "2026-09-08"
+license: MIT
+keywords:
+  - filament segmentation
+  - instance segmentation
+  - overlapping instances
+  - skeleton analysis
+  - microscopy image analysis
+abstract: >-
+  PLECTA reconstructs overlapping strand instances from a thin binary mask. It
+  skeletonizes the mask, decomposes it into arms and junctions, and alternates
+  exact crossing matching with gated gap matching as chain geometry is refined.
+  Grouping is deterministic and mask-only: it reads neither the source image,
+  the ground truth, nor a clean reference mask, and crossing pixels may belong
+  to several output instances.

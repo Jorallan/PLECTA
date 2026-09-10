@@ -55,7 +55,7 @@ grouping_2d:
 
   gap_cost:
     # True gap links measure shorter and straighter than wrong candidates
-    # (METHOD.md): the turn terms do the real discriminating work, length
+    # (measured): the turn terms do the real discriminating work, length
     # mostly breaks ties. A candidate is eligible only when its cost is below
     # 2x g_unmatched.
     gap_max_len: 85.0   # longest bridge considered
@@ -125,7 +125,6 @@ depth_3d:
                    # max(6.0, 1.1*5 + 2), from default_radius_px = 5.0. The
                    # value pre-existed the sweep; the sweep confirmed it on
                    # held-out data and retired the non-replicating 10.0.
-                   # See METHOD.md "A flat core, and where 7.5 px comes from".
     core_mode: "flat"   # flat | radius_scaled -- how that half-size is set.
                    # "flat": core = core_px, so NO radius enters the evidence
                    # path at all (the radius it replaced is an oracle quantity
@@ -246,8 +245,9 @@ depth_3d:
   solver:
     exact_max_nodes: 14   # exact DP up to this component size, then greedy
     undecided_order: "compact"   # compact | id_based -- how abstained crossings
-                                 # are stacked; see METHOD.md "Stacking the
-                                 # crossings the evidence could not decide"
+                                 # are stacked; see METHOD.md "Depth (2.5-D)".
+                                 # Both arrangements are solved and the thinner
+                                 # film is kept, so "compact" is never thicker.
 
   geometry:
     radius_mode: "measured"   # measured | fixed -- "measured" uses the caller's

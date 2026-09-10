@@ -27,8 +27,8 @@ the mask and their parameters.
 | File | What it does |
 |:--|:--|
 | [`parameters.yaml`](parameters.yaml) | Every tunable of every stage, grouped for reading. The run-time source of truth. |
-| [`parameters.py`](parameters.py) | Builds each stage's parameter object from that file. Refuses to run if the file and the dataclass disagree in *either* direction, which is what makes "the YAML is the configuration" true rather than aspirational — the dataclass defaults are deliberately *not* the tuned values (`linking.Params.join_px` defaults to 0 and is tuned to 14). Also asserts the frozen check below. |
-| [`params.json`](params.json) | Immutable record of the `grouping_2d` section alone, 27 values. Its SHA-256 is the anchor for [`../evidence/`](../evidence/). |
+| [`parameters.py`](parameters.py) | Builds each stage's parameter object from that file. Refuses to run if the file and the dataclass disagree in *either* direction, which is what makes "the YAML is the configuration" true rather than aspirational — the dataclass defaults are deliberately *not* the tuned values. Also asserts the frozen check below. |
+| [`params.json`](params.json) | Immutable record of the `grouping_2d` section alone. Its SHA-256 is the anchor for [`../evidence/`](../evidence/). |
 
 ### Tools that sit beside the core, not inside it
 
@@ -42,7 +42,7 @@ the mask and their parameters.
 | File | What it does |
 |:--|:--|
 | [`depth.py`](depth.py) | The 2.5-D stage. Finds projected crossings, reads one grayscale channel to decide which instance is on top at each, resolves those local calls into one globally consistent order, infers the fewest layers that order needs, solves a height per instance under a compact-stack prior, and sweeps circular tubes to PLY/OBJ. Also the `python -m plecta.depth` command line. |
-| [`joint.py`](joint.py) | A **measured negative result**, kept as a record. Blends stub appearance into the crossing decision where the geometry alone was ambiguous; measured at −0.0129 mean F1 and retained so the configuration that produced that number still runs. Nothing in the shipped pipeline imports it. |
+| [`joint.py`](joint.py) | A **measured negative result**, kept as a record. Blends stub appearance into the crossing decision where the geometry alone was ambiguous; measured worse than geometry alone and retained so the configuration that produced that result still runs. Nothing in the shipped pipeline imports it. |
 | [`image/`](image/) | Optional width and brightness measurement, and rendering. See [`image/README.md`](image/README.md). |
 
 ## Why the grouping is split into four files
@@ -54,8 +54,7 @@ pairing stubs is exactly the question that requires connectivity and shape at
 once. `predict.py` sits on top and knows only about output.
 
 That layering is load-bearing rather than cosmetic: `geometry.py` is also used
-by `depth.py` and by `image/measurement.py`, and `graph.py` by six other
-modules. Folding either into `linking.py` would drag the matching solver into
+by `depth.py` and by `image/measurement.py`, and `graph.py` by most of the others. Folding either into `linking.py` would drag the matching solver into
 every module that only wanted a tangent or a skeleton.
 
 ## What is guaranteed, and by what
@@ -75,8 +74,7 @@ every module that only wanted a tangent or a skeleton.
 
 ## Evidence
 
-Held-out F1 **0.8545** over 128 disjoint-seed scenes; development F1 **0.8671**
-over 84. Aggregates and provenance are in
+Held-out and development results and the ablation values are in
 [`../evidence/benchmark_summary.json`](../evidence/benchmark_summary.json),
-which is the canonical machine-readable copy and the one the SHA-256 provenance
-is built around.
+which is the canonical copy and what the SHA-256 provenance is built around.
+[`../evidence/README.md`](../evidence/README.md) says what each file records.

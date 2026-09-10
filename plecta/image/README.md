@@ -33,16 +33,16 @@ redraws the same instances.
 
 A **positive** absorption threshold unions instances whose rendered silhouettes
 largely coincide. That is a separate, experimental grouping change, and it is
-absent from the 128-scene held-out result.
+absent from the held-out result.
 
 Two rendering options ship **off**, and their own measurements say why:
 
 - `clip_to_mask` — cannot change the score at all (every common fragment lies
   inside the mask, so clipping removes only pixels no fragment occupies), and
   puts the ragged mask boundary back into the delivered shape.
-- `taper` — more faithful to a genuinely tapering bundle, but measured at
-  −0.003 to −0.012 F1: where the local width dips below the mask's own width,
-  the ribbon stops covering its own fragment.
+- `taper` — more faithful to a genuinely tapering bundle, but measured worse:
+  where the local width dips below the mask's own width, the ribbon stops
+  covering its own fragment.
 
 Both are kept selectable, because "this cannot help" is worth being able to
 re-run.

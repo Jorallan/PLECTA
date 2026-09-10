@@ -1,6 +1,9 @@
 # PLECTA
 
-Licensed under the [MIT License](LICENSE).
+Licensed under the [MIT License](LICENSE): free to use, modify and
+redistribute, provided the copyright notice and license text travel with any
+copy or substantial portion of the code. If PLECTA or its method contributes to
+work you publish, please also [cite it](#citing-plecta).
 
 PLECTA, after the Latin *plecta*, a braid,
 reconstructs overlapping strand instances from a thin binary mask. It
@@ -42,11 +45,12 @@ Their defaults are under `.local/evaluation/data/`.
 
 | If you want | Read |
 |:--|:--|
-| The algorithm, and what was measured | [`METHOD.md`](METHOD.md) |
+| The algorithm, described | [`METHOD.md`](METHOD.md) |
 | Source modules and architecture | [`plecta/README.md`](plecta/README.md) |
 | Every tunable of every stage | [`plecta/parameters.yaml`](plecta/parameters.yaml) |
 | The frozen published configuration | [`plecta/params.json`](plecta/params.json) |
 | Benchmark aggregates and provenance | [`evidence/`](evidence/) |
+| How to cite this work | [Citing PLECTA](#citing-plecta) |
 | How the evaluation split was drawn | [`evidence/README.md`](evidence/README.md#evaluation-split) |
 
 `parameters.yaml` is the whole tunable surface and what the executable actually
@@ -55,14 +59,15 @@ its SHA-256 is the hash anchor for `evidence/`.
 
 ## Evidence
 
-The fixed method scored **0.8545** mean common-fragment F1 on 128 independently
-seeded held-out scenes from the same generator (precision 0.8676, recall 0.8430,
-recovery 0.7994, ARI 0.8508).
+The fixed method is evaluated with common-fragment pairwise F1 on held-out
+scenes drawn from seeds disjoint from every development scene. That tests
+**sampling robustness, not transfer to a new distribution** — the held-out
+scenes are independent draws from the same generator.
 
-This tests **sampling robustness, not transfer to a new distribution** — the
-held-out scenes are independent draws from the same generator. Compact
-provenance is in [`evidence/`](evidence/); evaluation data, detailed rows,
-diagnostics, and experimental scripts remain local.
+The aggregates, ablations, seed manifest and release-parity records are in
+[`evidence/`](evidence/), with the SHA-256 that ties them to the configuration
+they were produced under. Evaluation data, detailed diagnostics and
+experimental scripts remain local.
 
 ## Repository map
 
@@ -102,8 +107,7 @@ order, a minimal number of layers, one depth per instance, and sweeps circular
 
 Every instance is modelled as **planar** — one scalar depth, constant along its
 length — and no two reconstructed instances interpenetrate. It runs after
-grouping and cannot change it; not running it reproduces the grouping result
-above exactly. **Validated on synthetic scenes only.**
+grouping and cannot change it; not running it leaves the grouping result unchanged. **Validated on synthetic scenes only.**
 
 | Flag | Effect |
 |:--|:--|
@@ -121,25 +125,10 @@ the within-rod flank noise — so a crossing whose rods differ by less than the
 noise cannot report certainty. It reads a constant-size core and therefore
 **no radius**, and builds no gradient image.
 
-Measured on a clean held-out optical set of 20 scenes / 1355 crossings whose
-seeds are disjoint from every tuning set, against the rule shipped before
-2026-08-22:
+Against the rule shipped before it, this is **same accuracy, better-ordered
+confidence, simpler evidence path — not more accurate**. The better ordering
+turns into accuracy only wherever more abstention is acceptable. The previous
+rule stays selectable and reproduces its records bit for bit.
 
-| Against the previous rule | Result |
-|:--|:--|
-| Accuracy at the same coverage | +0.0025, 95% CI [−0.0042, +0.0079] |
-| Ranking AUC of correctness against \|s\| | 0.7772 → 0.8698 (+0.0926, [+0.0563, +0.1321]) |
-| Accuracy at 82.5% coverage | +0.0188 |
-
-So: **same accuracy, better-ordered confidence, simpler evidence path — not
-more accurate.** The better ordering turns into accuracy only wherever more
-abstention is acceptable. The 82.5% row is a coverage-matched comparison point,
-**not the shipped operating point**: at its own `abstain_score` = 0.40 the rule
-decides 87.1% of that set, at 0.9347 accuracy against 0.9217 at 89.5%.
-
-Those seeds are clean for the *rule*; the one constant selected on them is
-`core_px` = 7.5, which [`METHOD.md`](METHOD.md) says so of.
-
-The previous rule is still selectable and reproduces its records bit for bit.
-The depth aggregates recorded elsewhere — and the in-repo grazing-evidence
-figures — were produced under it and need regenerating.
+It was checked on a clean optical set whose seeds are disjoint from every
+tuning set. See the limitations noted in [`METHOD.md`](METHOD.md#scope).

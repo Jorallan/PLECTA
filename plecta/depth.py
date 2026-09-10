@@ -118,8 +118,7 @@ class DepthParams:
     # the one exception to "no parameter was chosen on that set", which holds
     # for the rule (scoring, w_intensity, the noise floor, abstain_score) and
     # not for this. Mitigating, not excusing: the sweep is flat and 7.5 is the
-    # value the radius-free fallback already produced. See METHOD.md,
-    # "A flat core, and where 7.5 px comes from".
+    # value the radius-free fallback already produced.
     core_mode: str = "flat"        # "flat" | "radius_scaled"
     # Channel weights. `w_intensity` is the weight on the intensity channel
     # under all three rules -- for "noise_floored" the whole score IS
