@@ -244,6 +244,11 @@ depth_3d:
 
   solver:
     exact_max_nodes: 14   # exact DP up to this component size, then greedy
+    ordering: "hybrid"    # hybrid | exact -- "hybrid" orders each connected
+                          # component as a whole and produced every published
+                          # number. "exact" orders the condensation of the
+                          # strongly connected components, so only relations on
+                          # a real contradiction cycle are reversed.
     undecided_order: "compact"   # compact | id_based -- how abstained crossings
                                  # are stacked; see METHOD.md "Depth (2.5-D)".
                                  # Both arrangements are solved and the thinner

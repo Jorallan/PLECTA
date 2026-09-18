@@ -185,6 +185,11 @@ class DepthParams:
     abstain_score: float = 0.40    # "noise_floored" only, in score units
     # global ordering
     exact_max_nodes: int = 14      # exact DP up to this component size
+    # "hybrid" orders each connected component as a whole, which is what every
+    # published number used. "exact" orders the condensation of the strongly
+    # connected components instead, so only relations on a genuine
+    # contradiction cycle can be reversed; see `_condensed_order`.
+    ordering: str = "hybrid"       # "hybrid" | "exact"
     # evidence
     # With no image, or with this off, every crossing abstains: the geometry
     # still solves and nothing interpenetrates, but the vertical order is a
@@ -860,6 +865,34 @@ def _order_block(nodes: List[int],
     return _greedy_order(list(nodes), w), 0
 
 
+def _condensed_order(nodes: List[int],
+                     w: Dict[Tuple[int, int], float],
+                     params: DepthParams) -> Tuple[List[int], int]:
+    """Top-first order that reverses only relations on a contradiction cycle.
+
+    `_strong_components` emits in reverse topological order, so walking it
+    backwards satisfies every relation BETWEEN components and hands only the
+    genuine cycles to `_order_block`.
+    """
+    adjacency: Dict[int, List[int]] = {n: [] for n in nodes}
+    for (u, v) in w:
+        if u in adjacency:
+            adjacency[u].append(v)
+    order: List[int] = []
+    exact = 1
+    for members in reversed(_strong_components(nodes, adjacency)):
+        if len(members) == 1:
+            order.extend(members)
+            continue
+        inside = set(members)
+        sub, ok = _order_block(members, {e: x for e, x in w.items()
+                                         if e[0] in inside and e[1] in inside},
+                               params)
+        order.extend(sub)
+        exact &= ok
+    return order, exact
+
+
 def resolve_global_order(instance_ids: Sequence[int],
                          crossings: List[PredCrossing],
                          params: DepthParams) -> dict:
@@ -933,12 +966,16 @@ def resolve_global_order(instance_ids: Sequence[int],
     # of those 60 land correct, 57%, which is a coin toss that happened to come
     # up heads on this set. That advantage is an accident rather than a
     # mechanism and is expected to invert as the local evidence improves. It was
-    # implemented and removed rather than kept switchable; the implementation is
-    # in git history at commit 7d369d8.
+    # implemented and removed rather than kept switchable. It is switchable
+    # again as `ordering = "exact"` (`_condensed_order`), still not the default,
+    # and still carrying that measurement: it satisfies more evidence and, under
+    # the planar height model here, makes the heights worse.
     for comp in comps.values():
         cw = {(u, v): weight for (u, v), weight in w.items()
               if u in comp and v in comp}
-        order, exact = _order_block(comp, cw, params)
+        order, exact = (_condensed_order(comp, cw, params)
+                        if params.ordering == "exact"
+                        else _order_block(comp, cw, params))
         used_exact += exact
         # positions are offset per component into one global total order, so
         # every downstream constraint direction (including for abstained
