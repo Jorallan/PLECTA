@@ -360,40 +360,16 @@ def measure_diameters(sem, centrelines: Dict[int, np.ndarray],
     return out
 
 
-#: Observed-width -> physical-diameter correction, fitted on the depth
-#: development nucleus (12 microscopy-domain scenes, 340 instances,
-#: 2026-08-18) as d = W2D_SLOPE * w_obs + W2D_OFFSET on oracle centrelines.
-#: Residual RMS 1.44 px on 7-16 px diameters; residual bias vs blur is
-#: -0.93 px for sigma > 2 px (FWHM broadening not separately inverted --
-#: profile shape, not the PSF, dominates the correction on this domain).
-#: The raw w_obs is always stored alongside so the correction stays
-#: auditable, and the correction is DOMAIN calibration: under a shifted
-#: rendering law it is expected to degrade, and that is reported, not hidden.
-W2D_SLOPE = 1.176
-W2D_OFFSET = 2.559
+#: Observed-width -> physical-diameter. The measured FWHM is taken as the
+#: diameter. A fitted correction, d = 1.176 * w_obs + 2.559 from the 12-scene
+#: synthetic microscopy nucleus, shipped until 2026-09-18 and was removed: it
+#: is domain calibration, and on the real SEM field B58-B3-S2_100 it read
+#: 1.46x the annotation's own traced width (18.32 px against 12.43 px median)
+#: where the raw width sits within 0.80 px of it. `git log` has it, and
+#: exploration/depth_thickness_cause_b58 has the measurement.
 
 
-def width_to_diameter(w_obs: Optional[float],
-                      correction: str = "domain") -> Optional[float]:
-    """Observed width -> physical diameter, under a named correction.
-
-    "domain" applies the fitted `W2D_SLOPE`/`W2D_OFFSET` above and is the
-    default, so every stored record reproduces. "none" returns the observed
-    width unchanged, for imaging whose rendering law the fit does not cover.
-
-    The fit is SYNTHETIC-DOMAIN calibration, and on a real SEM field it is
-    measured to overstate: on the 307 manually traced filaments of
-    B58-B3-S2_100 the corrected diameter runs 1.46x the annotation's own
-    traced width (18.32 px against 12.43 px median), while the raw `w_obs`
-    sits within 0.80 px of it. Per instance the two agree only at r = 0.43,
-    so "none" fixes the median, not the individual width.
-    """
+def width_to_diameter(w_obs: Optional[float]) -> Optional[float]:
     if w_obs is None or not np.isfinite(w_obs):
         return None
-    if correction == "none":
-        return max(0.5, float(w_obs))
-    if correction != "domain":
-        raise ValueError(
-            "width_to_diameter: correction must be 'domain' or 'none', "
-            f"got {correction!r}")
-    return max(0.5, W2D_SLOPE * float(w_obs) + W2D_OFFSET)
+    return max(0.5, float(w_obs))

@@ -264,16 +264,6 @@ depth_3d:
                                 # same scene; "default" takes default_radius_px,
                                 # a constant unrelated to the scene. Count is
                                 # reported as solver_report.n_radius_imputed.
-    width_correction: "domain"   # domain | none -- how a measured image width
-                                 # becomes a diameter. "domain" applies the
-                                 # calibration fitted on 12 synthetic
-                                 # microscopy scenes and reproduces every
-                                 # stored record. "none" takes the observed
-                                 # width as the diameter: on the B58-B3-S2_100
-                                 # SEM field the fitted correction reads 1.46x
-                                 # the annotation's traced width while the raw
-                                 # width is within 0.80 px of it. Only used
-                                 # when widths are measured from an image.
     default_radius_px: 5.0   # used when nothing at all could be measured
     z_gap_px: 0.0   # extra clearance added to r_i + r_j between stacked instances
     clear_grazing_overlaps: false   # also clear pairs overlapping without

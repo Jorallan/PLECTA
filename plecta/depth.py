@@ -208,15 +208,6 @@ class DepthParams:
     # than anything actually present. Either way the count is reported as
     # solver_report.n_radius_imputed, and those instances carry "d_imputed".
     radius_fallback: str = "median"  # "median" | "default"
-    # How a measured image width becomes a physical diameter; see
-    # `image.measurement.width_to_diameter`. "domain" applies the fitted
-    # calibration and reproduces every stored record. "none" takes the
-    # observed width as the diameter, which on a real SEM field is the
-    # closer of the two: the fit was made on synthetic microscopy and
-    # overstates real widths by about half again. Only reached when widths
-    # are measured from an image, i.e. radius_mode = "measured" with a
-    # sem_image supplied; the app's annotation-width path never uses it.
-    width_correction: str = "domain"   # "domain" | "none"
     # metric z (compact-stack assumption)
     default_radius_px: float = 5.0  # used when nothing at all could be measured
     z_gap_px: float = 0.0          # extra clearance added to r_i + r_j
@@ -1463,7 +1454,7 @@ def run_scene(image: np.ndarray,
     if not radii and sem_image is not None:
         widths = measure_diameters(sem_image, centrelines, crossings, params)
         for iid, rec in widths.items():
-            d_est = width_to_diameter(rec["w_obs"], params.width_correction)
+            d_est = width_to_diameter(rec["w_obs"])
             if d_est is not None:
                 radii[iid] = d_est / 2.0
     if params.radius_mode == "fixed":
