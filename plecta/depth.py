@@ -208,6 +208,10 @@ class DepthParams:
     # 8.12 at 20 nm. `bending.rho_shear_free()` recomputes it; 0 still asks
     # for that at run time.
     bend_rho: float = 8.09
+    # Spacing of the height chain along a filament, px. The answer is
+    # insensitive to it (59.8-60.2 nm across 1.5-6 px on B58-B3-S2_100) and
+    # the cost is not, so 6 is the default.
+    bend_sample_px: float = 6.0
     # evidence
     # With no image, or with this off, every crossing abstains: the geometry
     # still solves and nothing interpenetrates, but the vertical order is a

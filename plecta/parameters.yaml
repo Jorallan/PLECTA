@@ -276,6 +276,7 @@ depth_3d:
                     # on the bundle diameter: the tube count grows as d^2 and
                     # cancels the d^2 in rho^4 = 18 EI / (w_a d^2), leaving
                     # 8.06 at 10 nm, 8.09 at 13.4, 8.12 at 20.
+    bend_sample_px: 6.0   # spacing of the height chain along a filament, px
     default_radius_px: 5.0   # used when nothing at all could be measured
     z_gap_px: 0.0   # extra clearance added to r_i + r_j between stacked instances
     clear_grazing_overlaps: false   # also clear pairs overlapping without

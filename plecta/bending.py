@@ -56,6 +56,17 @@ _W_ADHESION = 0.44e-9       # N, three-pair line contact (Girifalco 2000)
 #: back. Chosen on ONE field, so it is a tie-break rather than a measurement.
 _FLATNESS = 5.0
 
+#: The curvature bound is applied to the second differences of a chain
+#: sampled every few pixels, which is a weaker statement than bounding the
+#: curvature of the smooth filament that chain stands for: a curve drawn
+#: through samples sitting exactly at the limit exceeds it between them, by
+#: up to a factor of two at 6 px sampling (measured, and only slowly improved
+#: by refining -- 1.5x at 1.5 px and 25x the variables). The constraint is
+#: therefore applied this much tighter, so that the filament the model draws,
+#: and not merely the chain it solves, respects the radius the mechanics
+#: gives. Reported bounds are the physical ones, not these.
+_CURVATURE_SAFETY = 2.0
+
 
 def rho_shear_free(diameter_nm: float = 0.0) -> float:
     """Diameters of arclength a filament needs to rise one diameter.
@@ -84,64 +95,32 @@ def _arclength(points: np.ndarray) -> np.ndarray:
     return np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(p, axis=0).T))])
 
 
-def _smoothstep(t):
-    """Clamped cubic: flat at both ends, which is the shape a bend takes."""
-    t = np.clip(t, 0.0, 1.0)
-    return t * t * (3.0 - 2.0 * t)
-
-
 def height_profile(points: np.ndarray,
-                   arcs: Sequence[float],
-                   heights: Sequence[float],
-                   rest: float,
-                   ramp_px: float,
+                   sample_at: Sequence[float],
+                   sample_h: Sequence[float],
                    at: np.ndarray = None) -> np.ndarray:
-    """Height at every point of a centreline, given the solved crossings.
+    """Height at every centreline point, from the heights that were SOLVED.
 
-    Between two crossings the filament takes a clamped S-bend, flat at each
-    crossing. Beyond the outermost crossing it ramps down to `rest` over
-    `ramp_px * sqrt(rise / diameter)` -- a ramp SCALES with its rise, which is
-    what keeps a filament coming down from four diameters from doing it as
-    sharply as one coming down from a single diameter. Where there is not
-    enough arclength for the ramp, the filament simply stays up: it has run
-    out of room to come down, and the model never claimed otherwise.
+    There is no assumed shape here any more. `solve_bending_z` carries a
+    height every few pixels along the filament and bounds the curvature of
+    that chain directly, so the profile is the answer rather than a curve
+    threaded through a handful of knots afterwards. This only resamples it
+    onto the centreline's own points.
     """
-    pts = np.asarray(points, dtype=float)
-    cum = _arclength(pts) if at is None else np.asarray(at, dtype=float)
-    out = np.full(len(cum), float(rest))
-    arcs = np.asarray(arcs, dtype=float)
-    heights = np.asarray(heights, dtype=float)
-    if len(arcs) == 0:
-        return out
-    order = np.argsort(arcs)
-    arcs, heights = arcs[order], heights[order]
-    total = float(cum[-1]) if len(cum) else 0.0
+    from scipy.interpolate import PchipInterpolator
 
-    def ramp_for(rise):
-        return float(ramp_px) * np.sqrt(max(float(rise), 0.0) / max(ramp_px, 1e-9))
-
-    head = cum <= arcs[0]
-    if head.any():
-        length = ramp_for(heights[0] - rest)
-        if length > 1e-9 and arcs[0] >= length:
-            out[head] = heights[0] + (rest - heights[0]) * _smoothstep(
-                (arcs[0] - cum[head]) / length)
-        else:
-            out[head] = heights[0]
-    tail = cum >= arcs[-1]
-    if tail.any():
-        length = ramp_for(heights[-1] - rest)
-        if length > 1e-9 and (total - arcs[-1]) >= length:
-            out[tail] = heights[-1] + (rest - heights[-1]) * _smoothstep(
-                (cum[tail] - arcs[-1]) / length)
-        else:
-            out[tail] = heights[-1]
-    for a1, a2, h1, h2 in zip(arcs, arcs[1:], heights, heights[1:]):
-        span = (cum >= a1) & (cum <= a2)
-        if not span.any():
-            continue
-        out[span] = h1 + (h2 - h1) * _smoothstep((cum[span] - a1) / max(a2 - a1, 1e-9))
-    return out
+    cum = _arclength(np.asarray(points, dtype=float)) if at is None         else np.asarray(at, dtype=float)
+    x = np.asarray(sample_at, dtype=float)
+    y = np.asarray(sample_h, dtype=float)
+    if len(cum) == 0:
+        return np.zeros(0)
+    if len(x) < 3:
+        return np.interp(cum, x, y)
+    # PCHIP rather than a natural spline: an interpolating spline overshoots
+    # between samples and so reports curvature the solver never permitted
+    # (measured: radii 12 % tighter than the bound). PCHIP does not overshoot,
+    # and np.interp would instead put a corner at every sample.
+    return PchipInterpolator(x, y)(np.clip(cum, x[0], x[-1]))
 
 
 def solve_bending_z(instance_ids: Sequence[int],
@@ -169,10 +148,32 @@ def solve_bending_z(instance_ids: Sequence[int],
     info: Dict[str, object] = {"rho": 0.0, "min_radius_px": 0.0,
                                "ramp_px": 0.0, "profiles": {}}
 
-    index: Dict[Tuple[int, int], int] = {}
-    per: Dict[int, List[Tuple[float, int]]] = {}
-    pairs: List[Tuple[int, int, int]] = []          # (k, hi, lo)
+    # One height every `step` pixels along each filament, with a sample
+    # landing on each crossing. Bounding the curvature of THIS chain bounds
+    # the shape the model actually claims, everywhere along it -- which
+    # bounding the rise across a span, or a curve fitted through the crossings
+    # afterwards, does not.
+    step = max(1.0, float(getattr(params, "bend_sample_px", 0)) or 6.0)
+    samples: Dict[int, np.ndarray] = {}
+    offset: Dict[int, int] = {}
+    n_var = 0
     cum = {n: _arclength(centrelines[n]) for n in ids if n in centrelines}
+    for n in ids:
+        if n not in cum or len(cum[n]) < 2:
+            continue
+        total = float(cum[n][-1])
+        if total <= 0:
+            continue
+        knots = np.linspace(0.0, total, max(3, int(total / step) + 1))
+        samples[n] = knots
+        offset[n] = n_var
+        n_var += len(knots)
+
+    def sample_of(n: int, arc: float) -> int:
+        return offset[n] + int(np.argmin(np.abs(samples[n] - arc)))
+
+    index: Dict[Tuple[int, int], int] = {}
+    pairs: List[Tuple[int, int, int]] = []          # (k, hi, lo)
     for k, c in enumerate(crossings):
         if c.i not in inside or c.j not in inside:
             continue
@@ -183,14 +184,13 @@ def solve_bending_z(instance_ids: Sequence[int],
                       else (c.j, c.i))
         else:
             continue
+        if hi not in samples or lo not in samples:
+            continue
         pairs.append((k, hi, lo))
-        for s in (c.i, c.j):
-            if (s, k) in index or s not in cum or len(cum[s]) < 2:
-                continue
-            index[(s, k)] = len(index)
-            p = np.asarray(centrelines[s], dtype=float)
+        for t in (c.i, c.j):
+            p = np.asarray(centrelines[t], dtype=float)
             nearest = int(np.argmin(np.hypot(p[:, 0] - c.x, p[:, 1] - c.y)))
-            per.setdefault(s, []).append((float(cum[s][nearest]), k))
+            index[(t, k)] = sample_of(t, float(cum[t][nearest]))
 
     if not index:
         return flat[0], flat[1], "no_edges", info
@@ -222,63 +222,65 @@ def solve_bending_z(instance_ids: Sequence[int],
             vals.append(v)
         rhs.append(bound)
 
+    # clearance, at the sample each crossing lands on
     for k, hi, lo in pairs:
-        a, b = index.get((hi, k)), index.get((lo, k))
-        if a is None or b is None:
+        a_i, b_i = index.get((hi, k)), index.get((lo, k))
+        if a_i is None or b_i is None:
             continue
-        row({b: 1.0, a: -1.0}, -(r[hi] + r[lo] + params.z_gap_px))
+        row({b_i: 1.0, a_i: -1.0}, -(r[hi] + r[lo] + params.z_gap_px))
 
-    # A clamped S-bend of rise dh over arclength L has minimum radius
-    # L^2 / (6 dh), so "no tighter than r_min" is |dh| <= L^2 / (6 r_min).
-    # The TRUE arclength is used: two crossings within a diameter of each
-    # other are one junction, and the cap then holds them level rather than
-    # licensing a kink between them.
-    for s, hits in per.items():
-        ordered = sorted(set(hits))
-        for (a1, k1), (a2, k2) in zip(ordered, ordered[1:]):
-            cap = (a2 - a1) ** 2 / (6.0 * r_min_of[s])
-            u, v = index[(s, k1)], index[(s, k2)]
-            row({v: 1.0, u: -1.0}, cap)
-            row({u: 1.0, v: -1.0}, cap)
+    # Curvature, on every consecutive triple of the chain. With uniform
+    # spacing d the second difference IS d^2 * d2h/ds2 for a shallow profile,
+    # so |h[m-1] - 2 h[m] + h[m+1]| <= d^2 / r_min holds the filament to its
+    # own bend radius at EVERY point, not just across a span or at a knot.
+    # The bending is then spread the way an elastic filament spreads it,
+    # because no part of the chain may take more than its share.
+    n_h = n_var
+    for n, knots in samples.items():
+        d = float(knots[1] - knots[0]) if len(knots) > 1 else 0.0
+        if d <= 0:
+            continue
+        cap = d * d / (r_min_of[n] * _CURVATURE_SAFETY)
+        base = offset[n]
+        for m in range(1, len(knots) - 1):
+            i0, i1, i2 = base + m - 1, base + m, base + m + 1
+            row({i0: 1.0, i1: -2.0, i2: 1.0}, cap)
+            row({i0: -1.0, i1: 2.0, i2: -1.0}, cap)
 
-    # Minimising the summed height alone leaves the solver INDIFFERENT
-    # wherever bending buys no height, and an arbitrary vertex of a flat face
-    # is usually a bent one -- which is why everything came out wavy. One
-    # slack per segment, |dh| <= t, carrying a small weight in the objective
-    # breaks that tie toward flat: the film is still as low as the ordering
-    # allows, and a filament bends only where bending is what lowers it.
-    n_h = len(index)
+    # Height alone leaves the solver indifferent wherever bending is free, so
+    # charge for bending too: one slack per step carrying |dh|.
     slack: List[Tuple[int, int, int]] = []
-    for s, hits in per.items():
-        ordered = sorted(set(hits))
-        for (_a1, k1), (_a2, k2) in zip(ordered, ordered[1:]):
-            slack.append((n_h + len(slack), index[(s, k1)], index[(s, k2)]))
+    for n, knots in samples.items():
+        base = offset[n]
+        for m in range(len(knots) - 1):
+            slack.append((n_h + len(slack), base + m, base + m + 1))
     for t, u, v in slack:
         row({v: 1.0, u: -1.0, t: -1.0}, 0.0)
         row({u: 1.0, v: -1.0, t: -1.0}, 0.0)
 
-    n_var = n_h + len(slack)
-    a_ub = coo_matrix((vals, (rows, cols)), shape=(len(rhs), n_var)).tocsr()
-    order = sorted(index, key=index.get)
-    lower = np.concatenate([np.array([r[s] for (s, _k) in order]),
-                            np.zeros(len(slack))])
+    n_total = n_h + len(slack)
+    a_ub = coo_matrix((vals, (rows, cols)), shape=(len(rhs), n_total)).tocsr()
+    lower = np.zeros(n_total)
+    for n, knots in samples.items():
+        lower[offset[n]:offset[n] + len(knots)] = r[n]
     cost = np.concatenate([np.ones(n_h), np.full(len(slack), _FLATNESS)])
+    info["n_height_variables"] = int(n_h)
+    info["sample_px"] = round(step, 2)
     res = linprog(cost, A_ub=a_ub, b_ub=np.array(rhs),
-                  bounds=list(zip(lower, [None] * n_var)), method="highs")
+                  bounds=list(zip(lower, [None] * n_total)), method="highs")
     if not res.success:
         return flat[0], flat[1], "infeasible", info
 
     h = res.x
     z: Dict[int, float] = {}
     extent: Dict[int, Tuple[float, float]] = {}
-    solved: Dict[int, Tuple[List[float], List[float]]] = {}
+    chains: Dict[int, np.ndarray] = {}
     for n in ids:
-        hits = sorted(set(per.get(n, ())))
-        got = [h[index[(n, k)]] for (_a, k) in hits if (n, k) in index]
-        if got:
-            z[n] = float(np.mean(got))
-            extent[n] = (float(min(got)), float(max(got)))
-            solved[n] = ([a for a, _k in hits], got)
+        if n in samples:
+            seg = h[offset[n]:offset[n] + len(samples[n])]
+            chains[n] = seg
+            z[n] = float(np.mean(seg))
+            extent[n] = (float(seg.min()), float(seg.max()))
         else:
             z[n] = r[n]
             extent[n] = (r[n], r[n])
@@ -290,14 +292,13 @@ def solve_bending_z(instance_ids: Sequence[int],
     for n in ids:
         if n not in centrelines:
             continue
-        if n in solved:
-            arcs, hs = solved[n]
-            profiles[n] = height_profile(centrelines[n], arcs,
-                                         [v - floor for v in hs],
-                                         r[n], ramp_of[n], at=cum.get(n))
+        if n in chains:
+            profiles[n] = height_profile(centrelines[n], samples[n],
+                                         chains[n] - floor, at=cum.get(n))
         else:
             profiles[n] = np.full(len(np.asarray(centrelines[n])), z[n])
     info["profiles"] = profiles
+    info["chains"] = {n: (samples[n], chains[n] - floor) for n in chains}
     return z, extent, "bending", info
 
 
