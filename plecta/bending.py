@@ -44,6 +44,18 @@ _GAP_NM = 0.317             # wall-to-wall equilibrium spacing
 _C_INPLANE = 345.0          # J/m^2, in-plane stiffness (Yakobson 1996)
 _W_ADHESION = 0.44e-9       # N, three-pair line contact (Girifalco 2000)
 
+#: Weight on total height variation, against 1.0 per unit of height.
+#:
+#: Minimising height alone bends a filament wherever bending is free, which
+#: is most places, so the film came out wavy everywhere rather than where the
+#: geometry demands it. This charges for bending as well, and 5.0 is the
+#: largest weight that buys flatness for nothing on B58-B3-S2_100: it leaves
+#: the film at 87.1 nm while taking the filaments that never rise a nanometre
+#: from 148 of 307 to 169, and the summed rise down 9 %. Above it thickness
+#: starts to pay (89.1 nm at 8, 102 nm at 15) and by 50 the planar model is
+#: back. Chosen on ONE field, so it is a tie-break rather than a measurement.
+_FLATNESS = 5.0
+
 
 def rho_shear_free(diameter_nm: float = 0.0) -> float:
     """Diameters of arclength a filament needs to rise one diameter.
@@ -183,12 +195,19 @@ def solve_bending_z(instance_ids: Sequence[int],
     if not index:
         return flat[0], flat[1], "no_edges", info
 
-    diameter = 2.0 * float(np.median([r[n] for n in ids]))
     rho = float(rho) if rho and rho > 0 else rho_shear_free()
-    r_min = min_radius_px(rho, diameter)
-    ramp = rho * diameter
-    info.update(rho=round(rho, 4), min_radius_px=round(r_min, 3),
-                ramp_px=round(ramp, 3))
+    # rho is dimensionless, so the bend it allows scales with the filament it
+    # is applied to: a thicker bundle is held to a gentler radius and takes a
+    # longer arc to rise, which is what "harder to bend" means in absolute
+    # terms even though rho itself does not move with diameter.
+    r_min_of = {n: min_radius_px(rho, 2.0 * r[n]) for n in ids}
+    ramp_of = {n: rho * 2.0 * r[n] for n in ids}
+    diameter = 2.0 * float(np.median([r[n] for n in ids]))
+    info.update(rho=round(rho, 4),
+                min_radius_px=round(min_radius_px(rho, diameter), 3),
+                min_radius_px_range=[round(min(r_min_of.values()), 3),
+                                     round(max(r_min_of.values()), 3)],
+                ramp_px=round(rho * diameter, 3))
 
     rows: List[int] = []
     cols: List[int] = []
@@ -217,16 +236,34 @@ def solve_bending_z(instance_ids: Sequence[int],
     for s, hits in per.items():
         ordered = sorted(set(hits))
         for (a1, k1), (a2, k2) in zip(ordered, ordered[1:]):
-            cap = (a2 - a1) ** 2 / (6.0 * r_min)
+            cap = (a2 - a1) ** 2 / (6.0 * r_min_of[s])
             u, v = index[(s, k1)], index[(s, k2)]
             row({v: 1.0, u: -1.0}, cap)
             row({u: 1.0, v: -1.0}, cap)
 
-    n_var = len(index)
+    # Minimising the summed height alone leaves the solver INDIFFERENT
+    # wherever bending buys no height, and an arbitrary vertex of a flat face
+    # is usually a bent one -- which is why everything came out wavy. One
+    # slack per segment, |dh| <= t, carrying a small weight in the objective
+    # breaks that tie toward flat: the film is still as low as the ordering
+    # allows, and a filament bends only where bending is what lowers it.
+    n_h = len(index)
+    slack: List[Tuple[int, int, int]] = []
+    for s, hits in per.items():
+        ordered = sorted(set(hits))
+        for (_a1, k1), (_a2, k2) in zip(ordered, ordered[1:]):
+            slack.append((n_h + len(slack), index[(s, k1)], index[(s, k2)]))
+    for t, u, v in slack:
+        row({v: 1.0, u: -1.0, t: -1.0}, 0.0)
+        row({u: 1.0, v: -1.0, t: -1.0}, 0.0)
+
+    n_var = n_h + len(slack)
     a_ub = coo_matrix((vals, (rows, cols)), shape=(len(rhs), n_var)).tocsr()
     order = sorted(index, key=index.get)
-    lower = np.array([r[s] for (s, _k) in order])
-    res = linprog(np.ones(n_var), A_ub=a_ub, b_ub=np.array(rhs),
+    lower = np.concatenate([np.array([r[s] for (s, _k) in order]),
+                            np.zeros(len(slack))])
+    cost = np.concatenate([np.ones(n_h), np.full(len(slack), _FLATNESS)])
+    res = linprog(cost, A_ub=a_ub, b_ub=np.array(rhs),
                   bounds=list(zip(lower, [None] * n_var)), method="highs")
     if not res.success:
         return flat[0], flat[1], "infeasible", info
@@ -257,7 +294,7 @@ def solve_bending_z(instance_ids: Sequence[int],
             arcs, hs = solved[n]
             profiles[n] = height_profile(centrelines[n], arcs,
                                          [v - floor for v in hs],
-                                         r[n], ramp, at=cum.get(n))
+                                         r[n], ramp_of[n], at=cum.get(n))
         else:
             profiles[n] = np.full(len(np.asarray(centrelines[n])), z[n])
     info["profiles"] = profiles
