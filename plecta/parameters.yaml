@@ -269,8 +269,10 @@ depth_3d:
                                     # every published number; "bending" gives
                                     # it a height per crossing under a minimum
                                     # bend radius (see plecta/bending.py).
-    bend_min_radius_px: 0.0   # tightest bend allowed, px; 0 derives it from
-                              # the scene's bundle diameter
+    bend_rho: 0.0   # arclength in filament DIAMETERS needed to rise one
+                    # diameter -- the one number the bending model is
+                    # controlled by. 0 uses what (10,10) bundle mechanics
+                    # gives, about 8.1; larger is stiffer.
     default_radius_px: 5.0   # used when nothing at all could be measured
     z_gap_px: 0.0   # extra clearance added to r_i + r_j between stacked instances
     clear_grazing_overlaps: false   # also clear pairs overlapping without

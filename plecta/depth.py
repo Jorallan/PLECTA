@@ -196,9 +196,11 @@ class DepthParams:
     # number. "bending" solves a height per (instance, crossing) under a
     # minimum bend radius instead; see `plecta.bending`.
     height_model: str = "compact_stack"    # "compact_stack" | "bending"
-    # Tightest radius a filament may be bent to, px. 0 derives it from the
-    # scene's own bundle diameter.
-    bend_min_radius_px: float = 0.0
+    # Arclength, in filament diameters, a filament needs to rise by one
+    # diameter: the single number the bending model is controlled by. 0 takes
+    # what (10,10) bundle mechanics gives, about 8.1. Larger is stiffer, and
+    # rho -> infinity is the flat-filament model back again.
+    bend_rho: float = 0.0
     # evidence
     # With no image, or with this off, every crossing abstains: the geometry
     # still solves and nothing interpenetrates, but the vertical order is a
@@ -1575,10 +1577,11 @@ def run_scene(image: np.ndarray,
                 report["position"] = coloured
                 placement = "coloured"
         if params.height_model == "bending":
-            z, extent, z_status, r_min = bending.solve_bending_z(
+            z, extent, z_status, bend_info = bending.solve_bending_z(
                 ids, constrained, centrelines, radii, params,
-                report.get("position") or {}, params.bend_min_radius_px)
-            report.update(bend_min_radius_px=round(r_min, 3),
+                report.get("position") or {}, params.bend_rho)
+            report.update(bend_rho=bend_info["rho"],
+                          bend_min_radius_px=bend_info["min_radius_px"],
                           film_thickness_px=round(
                               bending.film_thickness(ids, extent, radii, params), 4))
         else:
@@ -1699,19 +1702,28 @@ def tube_mesh(centreline_xy: np.ndarray, z: float, radius,
     S(s, theta) = [x(s), y(s), z] + r(s) * (cos(theta) n(s) + sin(theta) e_z)
     with n(s) the in-plane unit normal of the planar centreline. Returns
     (vertices (N, 3) float32, quad faces (M, 4) int32). `radius` is a scalar
-    or per-point array.
+    or per-point array, and `z` is a scalar (a flat instance) or a height
+    per centreline point, which is what `bending.solve_bending_z` produces;
+    a profile is resampled onto the densified points by arclength.
     """
     pts = _densify(np.asarray(centreline_xy, dtype=np.float64), step=step)
     if len(pts) < 2:
         return np.zeros((0, 3), np.float32), np.zeros((0, 4), np.int32)
     r = np.broadcast_to(np.asarray(radius, dtype=np.float64), (len(pts),))
+    z_arr = np.asarray(z, dtype=np.float64)
+    if z_arr.ndim:                      # a height profile, not one height
+        def _along(q):
+            return np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(q, axis=0).T))])
+        src = np.asarray(centreline_xy, dtype=np.float64)
+        z_arr = np.interp(_along(pts), _along(src), z_arr)
+    z_arr = np.broadcast_to(z_arr, (len(pts),))
     normal = _unit_normals(pts)
     theta = np.linspace(0.0, 2.0 * np.pi, n_theta, endpoint=False)
     cu, sv = section_fn(theta)
     verts = np.empty((len(pts), n_theta, 3), dtype=np.float64)
     verts[:, :, 0] = pts[:, 0, None] + r[:, None] * cu[None, :] * normal[:, 0, None]
     verts[:, :, 1] = pts[:, 1, None] + r[:, None] * cu[None, :] * normal[:, 1, None]
-    verts[:, :, 2] = z + r[:, None] * sv[None, :]
+    verts[:, :, 2] = z_arr[:, None] + r[:, None] * sv[None, :]
     faces = []
     for k in range(len(pts) - 1):
         base0 = k * n_theta
@@ -1724,10 +1736,14 @@ def tube_mesh(centreline_xy: np.ndarray, z: float, radius,
 
 
 def scene_tubes(centrelines: Dict[int, np.ndarray],
-                z: Dict[int, float], radii: Dict[int, float],
+                z, radii: Dict[int, float],
                 default_radius: float = 5.0,
                 n_theta: int = 12) -> Dict[int, tuple]:
-    """One (vertices, faces) mesh per instance."""
+    """One (vertices, faces) mesh per instance.
+
+    A `z` entry is one height, or a height per centreline point when the
+    bending model produced a profile; `tube_mesh` takes either.
+    """
     out = {}
     for iid, poly in centrelines.items():
         out[iid] = tube_mesh(poly, z.get(iid, 0.0),
