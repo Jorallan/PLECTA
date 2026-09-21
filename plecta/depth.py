@@ -200,7 +200,14 @@ class DepthParams:
     # diameter: the single number the bending model is controlled by. 0 takes
     # what (10,10) bundle mechanics gives, about 8.1. Larger is stiffer, and
     # rho -> infinity is the flat-filament model back again.
-    bend_rho: float = 0.0
+    #
+    # The default is the value itself, not a sentinel, because it is not a
+    # per-scene quantity: with the tubes free to shear, EI = N EI_1 and N
+    # grows as d^2, so the d^2 in rho^4 = 18 EI / (w_a d^2) cancels and the
+    # bundle diameter drops out entirely -- 8.06 at 10 nm, 8.09 at 13.4 nm,
+    # 8.12 at 20 nm. `bending.rho_shear_free()` recomputes it; 0 still asks
+    # for that at run time.
+    bend_rho: float = 8.09
     # evidence
     # With no image, or with this off, every crossing abstains: the geometry
     # still solves and nothing interpenetrates, but the vertical order is a
