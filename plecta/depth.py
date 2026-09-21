@@ -77,6 +77,7 @@ from .geometry import _densify, _unit_normals
 # re-exported so `plecta.depth.measure_diameters` keeps working. Importing it
 # costs nothing: `plecta.image.measurement` pulls in numpy and no more, and
 # its scikit-image and scipy uses are all inside functions.
+from . import bending
 from .image.measurement import measure_diameters, width_to_diameter
 
 
@@ -190,6 +191,14 @@ class DepthParams:
     # connected components instead, so only relations on a genuine
     # contradiction cycle can be reversed; see `_condensed_order`.
     ordering: str = "hybrid"       # "hybrid" | "exact"
+    # How heights are produced from the order. "compact_stack" is the flat
+    # filament sweep `solve_metric_z` performs and produced every published
+    # number. "bending" solves a height per (instance, crossing) under a
+    # minimum bend radius instead; see `plecta.bending`.
+    height_model: str = "compact_stack"    # "compact_stack" | "bending"
+    # Tightest radius a filament may be bent to, px. 0 derives it from the
+    # scene's own bundle diameter.
+    bend_min_radius_px: float = 0.0
     # evidence
     # With no image, or with this off, every crossing abstains: the geometry
     # still solves and nothing interpenetrates, but the vertical order is a
@@ -1565,8 +1574,16 @@ def run_scene(image: np.ndarray,
                                      radii, params) - 1e-9):
                 report["position"] = coloured
                 placement = "coloured"
-        z, z_status = solve_metric_z(ids, constrained, radii, layers, params,
-                                     order_position=report.get("position"))
+        if params.height_model == "bending":
+            z, extent, z_status, r_min = bending.solve_bending_z(
+                ids, constrained, centrelines, radii, params,
+                report.get("position") or {}, params.bend_min_radius_px)
+            report.update(bend_min_radius_px=round(r_min, 3),
+                          film_thickness_px=round(
+                              bending.film_thickness(ids, extent, radii, params), 4))
+        else:
+            z, z_status = solve_metric_z(ids, constrained, radii, layers, params,
+                                         order_position=report.get("position"))
     # The gate always measures BOTH sets, whatever was constrained, so turning
     # `clear_grazing_overlaps` off reports the interpenetration it leaves
     # instead of hiding it.
@@ -1592,6 +1609,7 @@ def run_scene(image: np.ndarray,
                   n_radius_imputed=len(imputed_ids),
                   radius_fallback_px=round(radius_fallback_px, 4),
                   n_interpenetrating=len(violations),
+                  height_model=params.height_model,
                   undecided_order=params.undecided_order,
                   undecided_placement=placement)
 

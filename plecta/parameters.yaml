@@ -264,6 +264,13 @@ depth_3d:
                                 # same scene; "default" takes default_radius_px,
                                 # a constant unrelated to the scene. Count is
                                 # reported as solver_report.n_radius_imputed.
+    height_model: "compact_stack"   # compact_stack | bending -- "compact_stack"
+                                    # holds each filament flat and produced
+                                    # every published number; "bending" gives
+                                    # it a height per crossing under a minimum
+                                    # bend radius (see plecta/bending.py).
+    bend_min_radius_px: 0.0   # tightest bend allowed, px; 0 derives it from
+                              # the scene's bundle diameter
     default_radius_px: 5.0   # used when nothing at all could be measured
     z_gap_px: 0.0   # extra clearance added to r_i + r_j between stacked instances
     clear_grazing_overlaps: false   # also clear pairs overlapping without
