@@ -188,6 +188,22 @@ rule, sampling geometry and abstention threshold a run actually used, so a
 stored record describes itself rather than depending on the `parameters.yaml`
 of the day.
 
+#### Bending (optional, off by default)
+
+`depth_3d.height_model: "bending"` replaces the one-height-per-instance
+solve with a height every few pixels along each filament, under a minimum
+bend radius that follows from the bundle's stiffness and adhesion:
+R_min = sqrt(EI / 2 w_a) = rho^2 d / 6 with rho = 8.09 for a rope of (10,10)
+tubes free to shear, whatever its diameter. The over/under order, the
+crossings, the evidence and everything two-dimensional are exactly the flat
+model's; only the heights change, and rho -> infinity is the flat model
+again. The film on the reference annotation reads 64 nm against 121 nm flat.
+The method, its constants and their alternatives, the known-answer tests,
+the real-field numbers, the limitations, and how to remove the option are in
+[`BENDING.md`](BENDING.md); the implementation is
+[`plecta/bending.py`](plecta/bending.py), and the default path is
+bit-identical to the package before the option existed.
+
 ### Greyscale characterization
 
 [`plecta/image/`](plecta/image/) measures each instance against a registered
