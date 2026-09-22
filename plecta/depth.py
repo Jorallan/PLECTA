@@ -77,8 +77,12 @@ from .geometry import _densify, _unit_normals
 # re-exported so `plecta.depth.measure_diameters` keeps working. Importing it
 # costs nothing: `plecta.image.measurement` pulls in numpy and no more, and
 # its scikit-image and scipy uses are all inside functions.
-from . import bending
 from .image.measurement import measure_diameters, width_to_diameter
+# -- bending option -- `height_model = "bending"` (see plecta/bending.py and
+# BENDING.md). The module imports numpy only; nothing below reads it unless
+# that option is selected.
+from . import bending
+# -- end bending option --
 
 
 # ── parameters ─────────────────────────────────────────────────────────────
@@ -191,27 +195,35 @@ class DepthParams:
     # connected components instead, so only relations on a genuine
     # contradiction cycle can be reversed; see `_condensed_order`.
     ordering: str = "hybrid"       # "hybrid" | "exact"
+    # -- bending option -- (plecta/bending.py, BENDING.md). These three
+    # fields do nothing unless height_model is "bending".
+    #
     # How heights are produced from the order. "compact_stack" is the flat
     # filament sweep `solve_metric_z` performs and produced every published
-    # number. "bending" solves a height per (instance, crossing) under a
-    # minimum bend radius instead; see `plecta.bending`.
+    # number. "bending" solves a height every few pixels along each filament
+    # under a minimum bend radius instead, with the SAME order.
     height_model: str = "compact_stack"    # "compact_stack" | "bending"
     # Arclength, in filament diameters, a filament needs to rise by one
     # diameter: the single number the bending model is controlled by. 0 takes
     # what (10,10) bundle mechanics gives, about 8.1. Larger is stiffer, and
-    # rho -> infinity is the flat-filament model back again.
+    # rho -> infinity is the flat-filament model back again, exactly.
     #
     # The default is the value itself, not a sentinel, because it is not a
     # per-scene quantity: with the tubes free to shear, EI = N EI_1 and N
     # grows as d^2, so the d^2 in rho^4 = 18 EI / (w_a d^2) cancels and the
     # bundle diameter drops out entirely -- 8.06 at 10 nm, 8.09 at 13.4 nm,
     # 8.12 at 20 nm. `bending.rho_shear_free()` recomputes it; 0 still asks
-    # for that at run time.
+    # for that at run time. The bend radius it implies, rho^2 d / 6, IS
+    # proportional to the diameter: 146 nm at 13.4 nm.
     bend_rho: float = 8.09
-    # Spacing of the height chain along a filament, px. The answer is
-    # insensitive to it (59.8-60.2 nm across 1.5-6 px on B58-B3-S2_100) and
-    # the cost is not, so 6 is the default.
+    # Spacing of the height chain along a filament, px: a discretisation,
+    # not a physical quantity. Coarser chains cannot realise the tightest
+    # allowed ramp and so lift the film: on B58-B3-S2_100 the film reads
+    # 60.8 nm at 1.5 px, 61.1 at 3, 61.8 at 4, 64.3 at 6, 67.1 at 9 and
+    # 67.4 at 12, at 26.7, 5.6, 2.8, 1.3, 0.7 and 0.4 s. 6 is the default as
+    # the interactive compromise; 3 is within 0.5 % of the converged value.
     bend_sample_px: float = 6.0
+    # -- end bending option --
     # evidence
     # With no image, or with this off, every crossing abstains: the geometry
     # still solves and nothing interpenetrates, but the vertical order is a
@@ -1587,22 +1599,35 @@ def run_scene(image: np.ndarray,
                                      radii, params) - 1e-9):
                 report["position"] = coloured
                 placement = "coloured"
+        # -- bending option -- heights along each filament instead of one
+        # per filament; the order above is read, never changed.
         if params.height_model == "bending":
             z, extent, z_status, bend_info = bending.solve_bending_z(
                 ids, constrained, centrelines, radii, params,
                 report.get("position") or {}, params.bend_rho)
-            report.update(bend_rho=bend_info["rho"],
+            report.update(height_model="bending",
+                          bend_rho=bend_info["rho"],
                           bend_min_radius_px=bend_info["min_radius_px"],
+                          bend_sample_px=bend_info.get("sample_px"),
                           film_thickness_px=round(
                               bending.film_thickness(ids, extent, radii, params), 4))
+        # -- end bending option --
         else:
             z, z_status = solve_metric_z(ids, constrained, radii, layers, params,
                                          order_position=report.get("position"))
     # The gate always measures BOTH sets, whatever was constrained, so turning
     # `clear_grazing_overlaps` off reports the interpenetration it leaves
     # instead of hiding it.
-    violations = ([] if z is None
-                  else clearance_violations(crossings + contacts, z, radii, params))
+    if z is None:
+        violations = []
+    # -- bending option -- the gate reads each profile where the pair meets;
+    # one height per instance would be the mean of a curve and say nothing
+    elif params.height_model == "bending" and bend_info.get("chains"):
+        violations = bending.clearance_violations(
+            crossings + contacts, bend_info["chains"], centrelines, radii, params)
+    # -- end bending option --
+    else:
+        violations = clearance_violations(crossings + contacts, z, radii, params)
     report.update(n_layers=k, metric_z_status=z_status,
                   n_abstained=sum(c.abstain for c in crossings),
                   n_crossings=len(crossings),
@@ -1623,13 +1648,17 @@ def run_scene(image: np.ndarray,
                   n_radius_imputed=len(imputed_ids),
                   radius_fallback_px=round(radius_fallback_px, 4),
                   n_interpenetrating=len(violations),
-                  height_model=params.height_model,
                   undecided_order=params.undecided_order,
                   undecided_placement=placement)
 
     out = {
         "assumptions": {
-            "planar_instances": "dz/ds = 0",
+            # -- bending option -- a record says which shape it assumed
+            "planar_instances": (
+                "|d2z/ds2| <= 1/R_min(d), dz/ds = 0 at the ends"
+                if params.height_model == "bending" and z_status == "bending"
+                else "dz/ds = 0"),
+            # -- end bending option --
             "cross_section": "circular",
             "metric_z_prior": "compact stack (equality pull toward contact)",
             "evidence": (
@@ -1713,20 +1742,23 @@ def tube_mesh(centreline_xy: np.ndarray, z: float, radius,
     S(s, theta) = [x(s), y(s), z] + r(s) * (cos(theta) n(s) + sin(theta) e_z)
     with n(s) the in-plane unit normal of the planar centreline. Returns
     (vertices (N, 3) float32, quad faces (M, 4) int32). `radius` is a scalar
-    or per-point array, and `z` is a scalar (a flat instance) or a height
-    per centreline point, which is what `bending.solve_bending_z` produces;
-    a profile is resampled onto the densified points by arclength.
+    or per-point array. `z` is a scalar; the bending option also accepts a
+    height per centreline point (below).
     """
     pts = _densify(np.asarray(centreline_xy, dtype=np.float64), step=step)
     if len(pts) < 2:
         return np.zeros((0, 3), np.float32), np.zeros((0, 4), np.int32)
     r = np.broadcast_to(np.asarray(radius, dtype=np.float64), (len(pts),))
     z_arr = np.asarray(z, dtype=np.float64)
-    if z_arr.ndim:                      # a height profile, not one height
+    # -- bending option -- a height per centreline point, as
+    # `bending.solve_bending_z` produces, resampled onto the densified
+    # points by arclength. A scalar z takes the original path.
+    if z_arr.ndim:
         def _along(q):
             return np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(q, axis=0).T))])
         src = np.asarray(centreline_xy, dtype=np.float64)
         z_arr = np.interp(_along(pts), _along(src), z_arr)
+    # -- end bending option --
     z_arr = np.broadcast_to(z_arr, (len(pts),))
     normal = _unit_normals(pts)
     theta = np.linspace(0.0, 2.0 * np.pi, n_theta, endpoint=False)
@@ -1752,8 +1784,8 @@ def scene_tubes(centrelines: Dict[int, np.ndarray],
                 n_theta: int = 12) -> Dict[int, tuple]:
     """One (vertices, faces) mesh per instance.
 
-    A `z` entry is one height, or a height per centreline point when the
-    bending model produced a profile; `tube_mesh` takes either.
+    A `z` entry is one height (or, under the bending option, a height per
+    centreline point; `tube_mesh` takes either).
     """
     out = {}
     for iid, poly in centrelines.items():

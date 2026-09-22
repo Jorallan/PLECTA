@@ -264,19 +264,27 @@ depth_3d:
                                 # same scene; "default" takes default_radius_px,
                                 # a constant unrelated to the scene. Count is
                                 # reported as solver_report.n_radius_imputed.
+    # -- bending option -- (plecta/bending.py, BENDING.md): the three keys
+    # below do nothing unless height_model is "bending".
     height_model: "compact_stack"   # compact_stack | bending -- "compact_stack"
                                     # holds each filament flat and produced
                                     # every published number; "bending" gives
-                                    # it a height per crossing under a minimum
-                                    # bend radius (see plecta/bending.py).
+                                    # it a height every few pixels along its
+                                    # length under a minimum bend radius, with
+                                    # the same over/under order.
     bend_rho: 8.09  # arclength in filament DIAMETERS needed to rise one
                     # diameter -- the one number the bending model is
                     # controlled by, and larger is stiffer. 8.09 is what
                     # (10,10) bundle mechanics gives, and it does NOT depend
                     # on the bundle diameter: the tube count grows as d^2 and
                     # cancels the d^2 in rho^4 = 18 EI / (w_a d^2), leaving
-                    # 8.06 at 10 nm, 8.09 at 13.4, 8.12 at 20.
-    bend_sample_px: 6.0   # spacing of the height chain along a filament, px
+                    # 8.06 at 10 nm, 8.09 at 13.4, 8.12 at 20. The bend
+                    # radius it implies, rho^2 d / 6, is 146 nm at 13.4 nm.
+    bend_sample_px: 6.0   # spacing of the height chain along a filament, px.
+                          # A discretisation: coarser chains lift the film
+                          # (B58-B3-S2_100: 60.8 nm at 1.5 px, 61.1 at 3,
+                          # 64.3 at 6, 67.4 at 12; 27, 5.6, 1.3, 0.4 s).
+    # -- end bending option --
     default_radius_px: 5.0   # used when nothing at all could be measured
     z_gap_px: 0.0   # extra clearance added to r_i + r_j between stacked instances
     clear_grazing_overlaps: false   # also clear pairs overlapping without
