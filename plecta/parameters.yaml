@@ -250,7 +250,7 @@ depth_3d:
                           # strongly connected components, so only relations on
                           # a real contradiction cycle are reversed.
     undecided_order: "compact"   # compact | id_based -- how abstained crossings
-                                 # are stacked; see METHOD.md "Depth (2.5-D)".
+                                 # are stacked; see the method page, depth section.
                                  # Both arrangements are solved and the thinner
                                  # film is kept, so "compact" is never thicker.
 
@@ -264,7 +264,7 @@ depth_3d:
                                 # same scene; "default" takes default_radius_px,
                                 # a constant unrelated to the scene. Count is
                                 # reported as solver_report.n_radius_imputed.
-    # -- bending option -- (plecta/bending.py, BENDING.md): the three keys
+    # -- bending option -- (plecta/bending.py and its page): the three keys
     # below do nothing unless height_model is "bending".
     height_model: "compact_stack"   # compact_stack | bending -- "compact_stack"
                                     # holds each filament flat and produced

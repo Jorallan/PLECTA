@@ -4,8 +4,12 @@ THE OPTION. `height_model = "bending"` in `DepthParams` selects this module;
 the default `"compact_stack"` never imports anything from it at run time and
 is untouched by it. Everything bending-specific lives here; the hooks
 elsewhere (`depth.run_scene`, `depth.tube_mesh`, `parameters.yaml`) are
-fenced with `# -- bending option --` comments. See BENDING.md for the method
-and for how to remove the option.
+fenced with `# -- bending option --` comments. The method, the measurements
+behind its constants and how to remove the option are on the bending page of
+the documentation, kept outside this repository
+(C:/Repos/reports/plecta/bending.html). Removing it means deleting this module,
+tests/test_bending.py and every fenced block, or reverting the merge that
+brought it in (85b5dda).
 
 `solve_metric_z` gives every instance ONE height, which is the assumption
 `assumptions.planar_instances: dz/ds = 0` states. A filament that passes over
@@ -93,7 +97,7 @@ import numpy as np
 
 #: (10,10) armchair geometry and rope constants; see `rho_shear_free`.
 #: Alternatives from the same literature, and the rho each gives, are
-#: tabulated in BENDING.md; rho goes as the fourth root of every one of
+#: tabulated on the bending page; rho goes as the fourth root of every one of
 #: them, which is why the choice among them moves it by a fifth at most.
 _A_CC_NM = 0.142            # C-C bond length
 _TUBE_D_NM = _A_CC_NM * np.sqrt(3.0) * np.sqrt(300.0) / np.pi   # 1.356 nm
@@ -120,7 +124,7 @@ _FLATNESS_WEIGHT: Optional[float] = 1e-3
 #: point, so these are extra linear rows, not extra variables. 1 clears the
 #: knots only; the requirement sqrt(sep^2 - delta^2) then changes between
 #: knots and a residual interpenetration of up to 0.29 px was measured on
-#: the reference field; BENDING.md tabulates the residual and cost per value.
+#: the reference field; the bending page gives the residual per value.
 _ZONE_SUBSAMPLES = 2
 
 #: Second-difference cap, in px, below which a chain is pinned exactly

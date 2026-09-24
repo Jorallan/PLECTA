@@ -79,7 +79,7 @@ from .geometry import _densify, _unit_normals
 # its scikit-image and scipy uses are all inside functions.
 from .image.measurement import measure_diameters, width_to_diameter
 # -- bending option -- `height_model = "bending"` (see plecta/bending.py and
-# BENDING.md). The module imports numpy only; nothing below reads it unless
+# its documentation page). The module imports numpy only; nothing below reads it unless
 # that option is selected.
 from . import bending
 # -- end bending option --
@@ -195,7 +195,7 @@ class DepthParams:
     # connected components instead, so only relations on a genuine
     # contradiction cycle can be reversed; see `_condensed_order`.
     ordering: str = "hybrid"       # "hybrid" | "exact"
-    # -- bending option -- (plecta/bending.py, BENDING.md). These three
+    # -- bending option -- (plecta/bending.py and its documentation page). These three
     # fields do nothing unless height_model is "bending".
     #
     # How heights are produced from the order. "compact_stack" is the flat
