@@ -47,7 +47,7 @@ Their defaults are under `.local/evaluation/data/`.
 
 | If you want | Read |
 |:--|:--|
-| The algorithm, described | [`METHOD.md`](https://github.com/Jorallan/PLECTA/blob/85b5dda/METHOD.md) |
+| The algorithm, described | [`METHOD.md`](METHOD.md) |
 | Source modules and architecture | [`plecta/README.md`](plecta/README.md) |
 | Every tunable of every stage | [`plecta/parameters.yaml`](plecta/parameters.yaml) |
 | The frozen published configuration | [`plecta/params.json`](plecta/params.json) |
@@ -136,13 +136,13 @@ turns into accuracy only wherever more abstention is acceptable. The previous
 rule stays selectable and reproduces its records bit for bit.
 
 It was checked on a clean optical set whose seeds are disjoint from every
-tuning set. See the limitations noted in [`METHOD.md`](https://github.com/Jorallan/PLECTA/blob/85b5dda/METHOD.md#scope).
+tuning set. See the limitations noted in [`METHOD.md`](METHOD.md#scope).
 
 ## Citing PLECTA
 
 The MIT license requires that the copyright notice be preserved in copies of
 the code. Citation is asked of you separately, as a scholarly courtesy: if
-PLECTA or the method described in [`METHOD.md`](https://github.com/Jorallan/PLECTA/blob/85b5dda/METHOD.md) contributes to work
+PLECTA or the method described in [`METHOD.md`](METHOD.md) contributes to work
 you publish, cite the software.
 
 GitHub reads [`CITATION.cff`](CITATION.cff) and offers a **Cite this
