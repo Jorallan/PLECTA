@@ -7,6 +7,9 @@ how fast it is turning there.
 The frame is fitted in arclength, with the tip at ``s = 0`` and ``s`` growing
 *into* the arm, then re-expressed outward, because every question the linker
 asks ("does this arm continue into that one?") is about the outward direction.
+The arclength is summed along the pixel staircase, which is exact at 0 and 45
+degrees and reads a straight arm at most 8.2 % long between them (at 22.5
+degrees).
 """
 from __future__ import annotations
 

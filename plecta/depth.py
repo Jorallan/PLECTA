@@ -56,6 +56,39 @@ file.
 The physical model is planar instances (dz/ds = 0) with circular
 cross-sections; z is in pixels, the same unit as radii.
 
+Assumptions, and where they hold. The numbers are on the reference annotation
+B58-B3-S2_100 (307 instances, 414 crossings) at the PLECTA App's flat defaults
+(measured widths, grazing pairs free):
+
+* Projection. The image is a parallel projection along z. There the beam
+  leans at most 0.013 deg, at the field's corner (working distance 4.34 mm,
+  field 1.66 um, stage untilted).
+* Occlusion. The filaments are opaque, and each rod's flank grey is the grey
+  it shows in the core. The lower rod's flank samples sit clear of the upper
+  rod's stroke only where r_upper / sin(theta) <= core_px; the thicker rod's
+  stroke reaches past that at 318 of the 414 crossings, and past 2 core_px
+  (half the flank, so the median itself can move) at 26.
+* Noise. sigma_hat = 1.4826 MAD is the standard deviation of Gaussian noise;
+  the flank residuals' standard deviation is 1.04 times it, and sigma_hat
+  (median 0.086) is 1.38 times the image's background noise about its local
+  field (0.062), so it holds brightness change along the rod as well as noise.
+* Order. `_exact_order` is a true maximum-weight order and never reverses a
+  relation that lies on no cycle; components above `exact_max_nodes` (14) go
+  to `_greedy_order`, a heuristic, which can. One component holds 205 of the
+  307 instances, and all 41 of the 57 flips that lie on no cycle are in it.
+* Undecided pairs. `compact_order` is DSATUR, a heuristic: it uses 7 levels
+  where the exact minimum (a mixed-integer solve) is 6, and 10 where it is 7
+  with grazing pairs cleared.
+* Clearance. z_hi - z_lo >= r_hi + r_lo is exact for two horizontal axes that
+  cross. A grazing pair whose axes pass d apart in projection needs only
+  sqrt((r_hi + r_lo)^2 - d^2) (median d / (r_hi + r_lo) 0.41), so clearing it
+  over-separates it (grazing pairs cleared: 161.6 px of film, against 160.7 px
+  at the exact clearance) and `clearance_violations` over-counts it (189
+  reported, 170 that interpenetrate in 3-D).
+* Base. Instances with nothing beneath them share the centre plane z = 0
+  instead of resting bottom-flush on one substrate (radii 3.5 to 14.5 px
+  here), which thickens the film: 123.5 px against 119.4 px resting.
+
 Output: a `pred_depth.json`-shaped dict (see `run_scene`), consumed by the
 evaluation side (`eval/core/depth_metric.py` in filaments_quantification).
 """

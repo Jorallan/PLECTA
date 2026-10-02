@@ -15,6 +15,20 @@ stacked on top of each other and reports the union; excluding a small
 neighbourhood of every node pixel costs sample size and buys accuracy.  The
 exclusion uses the *graph's* nodes, which are built from the mask before any
 matching decision is made, so it does not depend on the grouping being right.
+It reaches `node_clear_px` (6 px) from a node pixel, whereas the other bundle
+runs on for r_i / tan(theta) + r_j / sin(theta) along this one, further at
+shallow crossings: on the reference field B58-B3-S2_100, with its traced
+centrelines as the mask, 9.1 % of the accepted cuts lie within that reach and
+read a median 2.1 px wider than the rest of their instance.
+
+The spread is split into measurement noise and real variation along the
+bundle (`_split_scatter`) by taking the difference of two cuts 2 px apart as
+noise alone, which assumes their noise independent and the width unchanged
+between them.  On the same field neither holds cleanly: the image's background
+noise still correlates at 0.72 over 2 px, consecutive differences correlate at
++0.05 where independent noise gives -0.5, and the estimate grows with the
+spacing (0.98, 1.30, 1.64 and 1.80 px at 2, 4, 6 and 8 px), so the noise is
+read low and the real variation high.
 """
 from __future__ import annotations
 

@@ -36,7 +36,9 @@ has to pair up.
 
 Each stub receives an outward tangent and a signed curvature from a polynomial
 fit taken in **arclength** rather than pixel count, so a diagonal arm gets the
-same support as a horizontal one. A frame is marked reliable only when enough
+same support as a horizontal one (the arclength is summed along the pixel
+staircase, which is exact at 0° and 45° and reads a straight arm at most 8.2 %
+long between them, at 22.5°). A frame is marked reliable only when enough
 samples span enough arclength to justify it; unreliable frames are excluded
 from the candidate sets that depend on direction.
 
@@ -57,7 +59,9 @@ different arms, different junctions, and distance, tangent angle and chord-turn
 angle all within bounds. The cost then also charges for gap length, and
 eligibility again requires it to clear a ceiling.
 
-Cycles are broken after each matching step.
+Cycles are broken after each matching step only when `break_rings` is on; the
+evaluated configuration leaves it off, so a matched ring stands and a closed or
+looping strand is one instance.
 
 The rounds are coupled because **every accepted join lengthens a chain, and a
 longer chain estimates direction better**. Later rounds therefore refit geometry
@@ -156,27 +160,41 @@ The depth stage finds projected crossings, reads one grayscale channel to
 decide which instance lies on top at each, resolves those local calls into one
 globally consistent order, infers the fewest layers that order needs, solves a
 height per instance under a compact-stack prior, and can sweep circular tubes
-to PLY or OBJ.
+to PLY or OBJ. Three idealisations sit in that sentence: the image is a
+parallel projection along the beam; the order is the one that satisfies the
+most evidence only in components of up to 14 instances, while larger ones are
+ordered greedily and can reverse a call that nothing contradicts; and
+instances with nothing beneath them share the centre plane z = 0 rather than
+resting on one substrate, which thickens the film where their radii differ.
 
 The cue is **occlusion**: at a projected crossing the shared core shows the
 upper rod's appearance uninterrupted, while the lower rod's ridge is
-interrupted there. The question asked of the image is how far the core's
-appearance sits from each rod's own flanks, normalised so that a crossing whose
-rods differ by less than the flank noise cannot report certainty. The shipped
-rule reads a **constant-size core**, so no radius enters the evidence path, and
-builds no gradient image.
+interrupted there. That takes the filaments as opaque, and each rod's flank
+grey as the grey it shows in the core. The question asked of the image is how
+far the core's appearance sits from each rod's own flanks, normalised so that a
+crossing whose rods differ by less than the flank noise (the spread of each
+rod's flank grey about its own median, which also holds any brightness change
+along the rod) cannot report certainty. The shipped rule reads a
+**constant-size core**, so no radius enters the evidence path, and builds no
+gradient image; the lower rod's flank samples nearest the core then fall inside
+the upper rod's stroke wherever r_upper / sin θ, θ the crossing angle, exceeds
+the core's half-size.
 
 Every rule abstains rather than guesses — too few clean flank samples, or a
 score inside the abstention band, and the crossing is reported undecided. An
 abstained crossing still means the two instances overlap in projection and must
 clear each other in z, so `undecided_order` chooses how that tie is broken:
-either by graph colouring with precedence, which minimises the level count, or
-by the historical id-rank order. Both arrangements are solved and the thinner
-film is kept.
+either by graph colouring with precedence, which seeks the fewest levels with
+DSATUR (a greedy heuristic, since colouring is NP-hard, so the fewest is not
+guaranteed), or by the historical id-rank order. Both arrangements are solved
+and the thinner film is kept.
 
 Radii no longer take part in the evidence, but they still decide which pairs
-graze, set the clearance every stacked pair must satisfy, and become the
-exported tube's radius.
+graze, set the clearance r_i + r_j every stacked pair must satisfy, and become
+the exported tube's radius. That clearance is exact for two horizontal axes
+that cross; a grazing pair whose axes pass a distance d apart in projection
+needs only √((r_i + r_j)² − d²), so clearing it with r_i + r_j over-separates
+it.
 
 `DepthParams` is the complete list of what the stage may use. The fields, their
 defaults, and the measurements behind each choice — including the alternative

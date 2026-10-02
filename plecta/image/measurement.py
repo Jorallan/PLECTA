@@ -2,7 +2,13 @@
 
 The per-instance diameter measurement at the end (`measure_diameters`) is the
 depth stage's width input; it lives here, with the cut machinery it is built
-on, rather than beside the physics that consumes it.
+on, rather than beside the physics that consumes it. It takes the median FWHM
+as the diameter, with no broadening correction (`width_to_diameter`). That
+holds for a grey profile flat across the bundle, with edges sharp next to its
+width; a profile following a round bundle's projected thickness would read
+(sqrt 3 / 2) d, and blur widens either. On the reference field B58-B3-S2_100
+the median FWHM is 13.4 px against 12.43 px traced by hand, +0.80 px per
+filament (median).
 
 A full width at half maximum needs a *maximum* and a *half*, and the half is
 measured above the local background -- not above zero.  Both the synthetic SEM
@@ -14,8 +20,12 @@ ones.
 The background is therefore estimated as a *field*: a normalised convolution
 over the pixels that do not look like filament.  That is
 ``blur(image * background_weight) / blur(background_weight)``, which is the
-local mean of the background pixels only -- neighbouring filaments never enter
-it, which is the failure mode a plain local minimum or a plain blur has.
+local mean of the background pixels only -- neighbouring filaments enter it
+only where they are too faint to be called filament, whereas a plain local
+minimum or a plain blur takes them in.  A pixel is called filament above a
+fifth of the way from the image's 20th to its 99th grey percentile, grown by
+3 px; on the reference field B58-B3-S2_100, 7.4 % of the pixels the field
+averages still lie inside filaments traced by hand.
 
 Where a scene is so crowded that a neighbourhood contains almost no background
 pixel at all (this happens at cov60), the field falls back to a global robust
