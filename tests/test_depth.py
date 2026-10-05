@@ -115,6 +115,23 @@ class TestMetricZ(unittest.TestCase):
         self.assertGreaterEqual(abs(z[1] - z[2]), 8.0 - 1e-6)
 
 
+class TestTubeMesh(unittest.TestCase):
+    def test_a_height_per_centreline_point_is_followed(self):
+        """`tube_mesh` takes one height, or one per centreline point, which
+        it resamples by arclength onto the points it sweeps."""
+        line = np.column_stack([np.linspace(0.0, 40.0, 5), np.zeros(5)])
+        flat, faces = D.tube_mesh(line, 3.0, 2.0, n_theta=4)
+        self.assertAlmostEqual(float(flat[:, 2].min()), 1.0, places=5)
+        self.assertAlmostEqual(float(flat[:, 2].max()), 5.0, places=5)
+        ramp, faces_r = D.tube_mesh(line, np.linspace(0.0, 8.0, 5), 2.0, n_theta=4)
+        self.assertEqual(ramp.shape, flat.shape)
+        self.assertEqual(faces_r.shape, faces.shape)
+        centre = ramp[:, 2].reshape(-1, 4).mean(axis=1)
+        self.assertAlmostEqual(float(centre[0]), 0.0, places=5)
+        self.assertAlmostEqual(float(centre[-1]), 8.0, places=5)
+        self.assertTrue(np.all(np.diff(centre) > 0.0))
+
+
 class TestEvidenceOnSyntheticImage(unittest.TestCase):
     def test_bright_over_dim_is_detected(self):
         """A bright horizontal rod painted OVER a dim vertical one."""
