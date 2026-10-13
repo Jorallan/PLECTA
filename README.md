@@ -18,18 +18,36 @@ image, ground truth, or a clean reference mask.
 
 ## Install and run
 
+The command-line entry point is `main()` in
+[`plecta/predict.py`](plecta/predict.py). Installing the package creates a
+`plecta` command that calls it (declared under `[project.scripts]` in
+`pyproject.toml`):
+
 ```powershell
 python -m pip install .
 plecta --mask path\to\mask.png --out pred_multilabel.npz
 ```
 
-For a directory tree containing `mask_w1.png`:
+Without installing, run the same entry point as a module from the repository
+root, after installing the dependencies:
+
+```powershell
+python -m plecta.predict --mask path\to\mask.png --out pred_multilabel.npz
+```
+
+For a directory of scene folders, each holding one mask:
 
 ```powershell
 plecta --scenes path\to\scenes --out predictions
 ```
 
-The output is a sparse multilabel NPZ.
+Each scene folder is expected to contain `mask_w1.png`; pass
+`--mask-name mask.png` (or any other file name) when the masks are named
+differently. `plecta --help` lists every option.
+
+The output is a sparse multilabel NPZ per scene, `pred_multilabel.npz`, with
+the arrays `shape`, `ids`, `indptr` and `indices`. Instances may overlap: a
+crossing pixel is written into every instance that runs through it.
 
 ## Tests
 
